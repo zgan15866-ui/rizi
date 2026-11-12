@@ -84,6 +84,29 @@
   .chk input{width:20px;height:20px}
   .welcome{position:fixed;inset:0;background:var(--bg);z-index:60;display:none;align-items:center;justify-content:center;padding:24px}
   .welcome.on{display:flex}
+  .rec-card{background:linear-gradient(135deg,#fff3e0,#ffe1e6);border-radius:16px;padding:14px 16px;margin-bottom:12px;display:flex;align-items:center;gap:12px}
+  @media (prefers-color-scheme: dark){ .rec-card{background:linear-gradient(135deg,#3a2a22,#3a2230)} }
+  .rec-card .t{flex:1;min-width:0;font-weight:600;line-height:1.4}
+  .rec-card .t small{display:block;font-weight:400;color:var(--muted);font-size:13px}
+  .tools{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+  .tools button{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:12px;padding:10px 0;font-size:13px}
+  .tools button i{display:block;font-style:normal;font-size:22px;margin-bottom:2px}
+  .tools button.rec{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
+  .cell{position:relative;aspect-ratio:1;border-radius:10px;background:var(--soft) center/cover no-repeat;display:flex;align-items:center;justify-content:center;font-size:28px;overflow:hidden}
+  .cell .lab{position:absolute;left:4px;bottom:4px;background:rgba(0,0,0,.55);color:#fff;font-size:11px;padding:1px 6px;border-radius:6px}
+  .cell .x{position:absolute;right:3px;top:3px;width:24px;height:24px;border-radius:50%;border:0;background:rgba(0,0,0,.55);color:#fff;font-size:15px;line-height:1}
+  .mem{border-top:1px solid var(--line);padding:12px 0}
+  .mem:first-child{border-top:0}
+  .mem .h{display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--muted)}
+  .mem .tx{white-space:pre-wrap;line-height:1.6;margin-top:6px}
+  .mem .ms{display:flex;gap:6px;margin-top:8px;overflow-x:auto}
+  .mem .ms .cell{width:76px;flex:none;font-size:22px}
+  .viewer img,.viewer video{width:100%;border-radius:12px;margin-top:10px;display:block;background:#000}
+  .viewer audio{width:100%;margin-top:10px}
+  .busy{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:70;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px}
+  .busy[hidden],.recbar[hidden]{display:none}
+  .recbar{display:flex;align-items:center;gap:10px;background:var(--soft);border-radius:12px;padding:10px 12px;margin-top:10px;color:var(--accent);font-weight:600}
   .empty{text-align:center;padding:30px 10px;color:var(--muted);line-height:1.7}
 </style>
 </head>
@@ -96,8 +119,15 @@
       <div id="bkText"></div>
       <div class="row" style="margin-top:10px"><button class="ghost" id="bkGo" style="flex:1">去备份</button><button class="ghost" id="bkLater" style="flex:1">过几天再说</button></div>
     </div>
+    <div id="todayRec"></div>
     <div class="chips scroll" id="filter"></div>
     <div id="lists"></div>
+  </section>
+  <section class="view" id="v-mem">
+    <h1>📷 记录</h1>
+    <p class="sub" style="margin:-6px 4px 12px">重要日子那天随手拍的照片、视频、录音和文字都在这里。</p>
+    <div class="chips scroll" id="memFilter"></div>
+    <div id="memList"></div>
   </section>
   <section class="view" id="v-set">
     <h1>设置与备份</h1>
@@ -112,10 +142,11 @@
       <div id="catList"></div>
     </div>
     <div class="card pad">
-      <h2>备份</h2>
-      <p class="sub">数据只保存在这台手机上。建议每月导出一次备份，存到「文件」或发给自己。换手机时用「从备份恢复」。</p>
-      <div class="row"><button class="ghost" id="exportJson" style="flex:1">导出备份</button><button class="ghost" id="importBtn" style="flex:1">从备份恢复</button></div>
-      <input type="file" id="importFile" accept=".json,application/json" hidden>
+      <h2>导出与备份</h2>
+      <p class="sub">日子和记录（照片、视频、录音）只保存在这台手机上。建议每月导出一次，存到「文件」、隔空投送到 Mac 或发给自己。<br>导出的 zip 在 Mac 上解压后，用 Safari 打开「重要日子记录.html」就能浏览全部记录；同一个 zip 也能导回手机（换手机时用）。</p>
+      <div class="row"><button class="btn" id="exportJson" style="flex:1">导出全部</button><button class="ghost" id="importBtn" style="flex:1">从备份恢复</button></div>
+      <input type="file" id="importFile" accept=".zip,.json,application/zip,application/json" hidden>
+      <p class="sub" id="storeInfo" style="margin-top:10px"></p>
       <p class="sub" id="countInfo" style="margin-top:10px"></p>
     </div>
     <p class="sub" style="text-align:center">网页 App 不能在锁屏弹通知，提醒在打开 App 时显示。<br>特别重要的日子，可以再在 iPhone「提醒事项」里设一条。</p>
@@ -124,9 +155,14 @@
 <button class="fab" id="fab">＋</button>
 <nav class="tabs" id="tabs">
   <button data-v="home" class="on"><b>📅</b>日子</button>
+  <button data-v="mem"><b>📷</b>记录</button>
   <button data-v="set"><b>⚙️</b>设置</button>
 </nav>
 <div class="sheet" id="sheet"><div class="in" id="sheetIn"></div></div>
+<input type="file" id="fPhoto" accept="image/*" multiple hidden>
+<input type="file" id="fCam" accept="image/*" capture="environment" hidden>
+<input type="file" id="fVideo" accept="video/*" hidden>
+<div class="busy" id="busy" hidden><div id="busyText">请稍候…</div></div>
 <div class="welcome" id="welcome">
   <div class="card pad" style="width:100%;max-width:420px">
     <h2>👋 欢迎使用重要日子</h2>
@@ -204,6 +240,7 @@ function load(){
   db.items=db.items||[];
   db.cats=db.cats||JSON.parse(JSON.stringify(DEFAULT_CATS));
   if(db.fest==null) db.fest=true;
+  db.mems=db.mems||[];
   if(!db.nextId) db.nextId=1;
   if(!db.created) db.created=Date.now();
 }
@@ -283,6 +320,7 @@ function renderHome(){
   if(later.length) h+='<div class="sec">'+(soon.length?"以后":"接下来")+'</div><div class="card">'+later.map(rowHtml).join("")+'</div>';
   if(past.length) h+='<div class="sec">已经过去</div><div class="card">'+past.map(rowHtml).join("")+'</div>';
   $("lists").innerHTML=h;
+  renderTodayRec();
   checkBackup();
 }
 function rowHtml(r){
@@ -314,15 +352,19 @@ function openItem(id){
   kv+='<div><span>提醒</span><b>'+(it.remind?"提前 "+it.remind+" 天出现在「快到了」":"当天")+'</b></div>';
   if(it.note) kv+='<div><span>备注</span><b style="white-space:pre-wrap">'+esc(it.note)+'</b></div>';
   var bigTxt = o.days===0 ? '<div class="d">就是今天</div>' : '<div class="d">'+d.big+'<small>'+d.unit+'</small></div>';
-  sheet('<div class="big"><div class="e">'+esc(d.c.em)+'</div><div class="n">'+esc(it.name)+'</div>'+bigTxt+'</div><div class="kv">'+kv+'</div>'+
+  var ms=memsFor(it.id);
+  var memBlock='<button class="btn full" data-addmem="'+it.id+'" style="margin-top:14px">📷 记录这一天（照片 · 视频 · 录音 · 文字）</button>'+
+    (ms.length?'<div class="sec" style="margin:16px 0 4px">这一天的记录（'+ms.length+'）</div><div>'+ms.map(function(m){ return memHtml(m,false); }).join("")+'</div>':'');
+  sheet('<div class="big"><div class="e">'+esc(d.c.em)+'</div><div class="n">'+esc(it.name)+'</div>'+bigTxt+'</div><div class="kv">'+kv+'</div>'+memBlock+
     (it.fest?'<p class="sub" style="margin-top:12px">传统节日可以在「设置」里关掉。</p>':
     (d.c.expire && it.rep==="n" ? '<button class="btn full" data-act="renew" style="margin-top:14px">已续期，改新日期</button>':'')+
     '<div class="row" style="margin-top:12px"><button class="ghost" data-act="edit" style="flex:1">编辑</button><button class="ghost" data-act="del" style="flex:1;color:var(--accent)">删除</button></div>')+
     '<button class="ghost full" data-act="close" style="margin-top:10px">关闭</button>', function(act){
       if(act==="edit"||act==="renew"){ closeSheet(); editItem(it); return; }
       if(act==="del"){ if(delArm!==it.id){ delArm=it.id; toast("再点一次「删除」确认",2000); setTimeout(function(){delArm=null;},2500); return; }
-        db.items=db.items.filter(function(x){return x.id!==it.id;}); persist(); closeSheet(); toast("已删除"); renderHome(); }
+        db.items=db.items.filter(function(x){return x.id!==it.id;}); persist(); closeSheet(); toast(memsFor(it.id).length?"已删除（这个日子的记录还保留在「记录」页）":"已删除",2600); renderHome(); }
     });
+  fillThumbs($("sheetIn"));
 }
 var delArm=null;
 
@@ -445,7 +487,10 @@ function renderSet(){
   $("setFest").checked=!!db.fest;
   $("catList").innerHTML=db.cats.map(function(c){ var n=db.items.filter(function(i){return i.cat===c.id;}).length;
     return '<div class="it" data-cat2="'+c.id+'"><div class="em">'+esc(c.em)+'</div><div class="mid"><div class="nm">'+esc(c.name)+'</div><div class="dt">'+({y:"每年",m:"每月",n:"不重复"})[c.rep]+' · 提前 '+c.remind+' 天'+(c.age?" · 显示几岁":"")+(c.expire?" · 到期类":"")+'</div></div><div class="rt"><small>'+n+' 条 ›</small></div></div>'; }).join("");
-  $("countInfo").textContent="共 "+db.items.length+" 个日子。"+(db.lastBackup?"上次备份："+new Date(db.lastBackup).toLocaleDateString("zh-CN")+"。":"还没有备份过。");
+  $("countInfo").textContent="共 "+db.items.length+" 个日子。"+(db.lastBackup?"上次导出："+new Date(db.lastBackup).toLocaleDateString("zh-CN")+"。":"还没有导出过。");
+  var sz=0, nf=0; db.mems.forEach(function(m){ m.media.forEach(function(x){ sz+=x.size||0; nf++; }); });
+  var ue=unexported().length;
+  $("storeInfo").textContent="记录："+db.mems.length+" 条，照片视频录音 "+nf+" 个，约占 "+fmtSize(sz)+"。"+(ue?"其中 "+ue+" 条还没导出。":"");
 }
 $("setName").onchange=function(){ db.name=this.value.trim()||db.name; persist(); };
 $("setFest").onchange=function(){ db.fest=this.checked; persist(); };
@@ -484,25 +529,330 @@ function shareOrDownload(name,text,type){
   if(f && navigator.canShare && navigator.canShare({files:[f]})){ navigator.share({files:[f]}).catch(function(){}); return; }
   var a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(function(){a.remove();},500);
 }
-$("exportJson").onclick=function(){
-  var a=ymd(today());
-  shareOrDownload("重要日子备份-"+a.y+"-"+("0"+a.m).slice(-2)+"-"+("0"+a.d).slice(-2)+".json", JSON.stringify({app:"rizi",v:1,at:Date.now(),db:db}), "application/json");
-  db.lastBackup=Date.now(); delete db.bkSnooze; persist(); renderSet();
+// (导出功能在下面)
+
+// ---------- 记录：数据库（照片/视频/录音存在 IndexedDB） ----------
+var IDB=null;
+function openIDB(){
+  return new Promise(function(res,rej){
+    var r=indexedDB.open("rizi-media",1);
+    r.onupgradeneeded=function(){ r.result.createObjectStore("blobs",{keyPath:"id"}); };
+    r.onsuccess=function(){ IDB=r.result; res(IDB); }; r.onerror=function(){ rej(r.error); };
+  });
+}
+function rq(r){ return new Promise(function(res,rej){ r.onsuccess=function(){res(r.result);}; r.onerror=function(){rej(r.error);}; }); }
+function txDone(t){ return new Promise(function(res,rej){ t.oncomplete=function(){res();}; t.onerror=t.onabort=function(){rej(t.error||new Error("tx"));}; }); }
+function getBlob(id){ return (IDB?Promise.resolve(IDB):openIDB()).then(function(d){ return rq(d.transaction("blobs").objectStore("blobs").get(id)); }).then(function(r){ return r?r.blob:null; }).catch(function(){ return null; }); }
+var urlCache={};
+function blobURL(id){ if(urlCache[id]) return Promise.resolve(urlCache[id]); return getBlob(id).then(function(b){ if(!b) return ""; urlCache[id]=URL.createObjectURL(b); return urlCache[id]; }); }
+function putBlobs(list,removeIds){
+  return (IDB?Promise.resolve(IDB):openIDB()).then(function(d){
+    var t=d.transaction("blobs","readwrite"), st=t.objectStore("blobs");
+    list.forEach(function(x){ st.put(x); });
+    (removeIds||[]).forEach(function(id){ st.delete(id); st.delete(id+"_t"); });
+    return txDone(t);
+  });
+}
+function allBlobs(){ return (IDB?Promise.resolve(IDB):openIDB()).then(function(d){ return rq(d.transaction("blobs").objectStore("blobs").getAll()); }); }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+function pad2(n){ return (n<10?"0":"")+n; }
+function fmtSize(b){ return b>1073741824?(b/1073741824).toFixed(1)+" GB":b>1048576?(b/1048576).toFixed(1)+" MB":Math.ceil(b/1024)+" KB"; }
+function busy(on,t){ $("busy").hidden=!on; if(t) $("busyText").textContent=t; }
+db.mems=db.mems||[];
+
+// ---------- 媒体处理（和日记 App 相同） ----------
+function loadImg(blob){ return new Promise(function(res,rej){ var u=URL.createObjectURL(blob), im=new Image(); im.onload=function(){ res({im:im,url:u}); }; im.onerror=function(){ URL.revokeObjectURL(u); rej(new Error("img")); }; im.src=u; }); }
+function drawTo(src,w,h,max,q){ var sc=Math.min(1,max/Math.max(w,h)), c=document.createElement("canvas"); c.width=Math.round(w*sc); c.height=Math.round(h*sc); c.getContext("2d").drawImage(src,0,0,c.width,c.height); return new Promise(function(res){ c.toBlob(function(b){ res(b); },"image/jpeg",q); }); }
+async function processPhoto(file){
+  try{ var r=await loadImg(file), w=r.im.naturalWidth, h=r.im.naturalHeight;
+    var big=Math.max(w,h)>2560||file.size>2500000 ? await drawTo(r.im,w,h,2560,0.86) : file;
+    var th=await drawTo(r.im,w,h,480,0.75); URL.revokeObjectURL(r.url);
+    return {blob:big||file, mime:(big&&big!==file)?"image/jpeg":(file.type||"image/jpeg"), thumb:th};
+  }catch(e){ return {blob:file, mime:file.type||"image/jpeg", thumb:null}; }
+}
+function videoThumb(blob){
+  return new Promise(function(res){
+    var v=document.createElement("video"), u=URL.createObjectURL(blob), fin=false;
+    function end(b){ if(fin) return; fin=true; URL.revokeObjectURL(u); res(b||null); }
+    v.muted=true; v.playsInline=true; v.preload="auto";
+    v.onloadeddata=function(){ try{ v.currentTime=Math.min(0.5,(v.duration||1)/2); }catch(e){ end(null); } };
+    v.onseeked=function(){ try{ drawTo(v,v.videoWidth,v.videoHeight,480,0.75).then(end); }catch(e){ end(null); } };
+    v.onerror=function(){ end(null); }; setTimeout(function(){ end(null); },6000); v.src=u;
+  });
+}
+
+// ---------- 记录：编辑 ----------
+var ED=null, rec=null, recChunks=[], recStart=0, recTimer=null, recStream=null;
+function itemName(id){ var it=findItem(id); return it?it.name:"已删除的日子"; }
+function itemEm(id){ var it=findItem(id); if(!it) return "📌"; return it.fest?"🏮":cat(it.cat).em; }
+function openEditor(itemId, memId){
+  var m = memId ? db.mems.filter(function(x){return x.id===memId;})[0] : null;
+  ED = m ? {id:m.id,item:m.item,date:m.date,text:m.text||"",media:m.media.map(function(x){ return Object.assign({saved:true},x); }),removed:[],isNew:false}
+         : {id:uid(),item:itemId,date:today(),text:"",media:[],removed:[],isNew:true};
+  var a=ymd(ED.date), dv=a.y+"-"+pad2(a.m)+"-"+pad2(a.d);
+  sheet('<h2>'+esc(itemEm(ED.item))+' '+(ED.isNew?'记录':'编辑记录')+' · '+esc(itemName(ED.item))+'</h2>'+
+    '<textarea id="mText" placeholder="写几句此刻的心情，或者今天发生的事……" style="min-height:110px">'+esc(ED.text)+'</textarea>'+
+    '<div class="tools"><button id="tCam"><i>📷</i>拍照</button><button id="tPhoto"><i>🖼️</i>相册</button><button id="tVideo"><i>🎬</i>视频</button><button id="tRec"><i>🎙️</i>录音</button></div>'+
+    '<div class="recbar" id="recBar" hidden>● 录音中 <span id="recTime">0:00</span><span style="flex:1"></span><button class="btn" id="recStop" style="padding:6px 14px">停止</button></div>'+
+    '<div class="grid" id="mMedia"></div>'+
+    '<label class="f">日期</label><input type="date" id="mDate" value="'+dv+'">'+
+    '<div class="row" style="margin-top:16px">'+(ED.isNew?'':'<button class="ghost" id="mDel" style="flex:1;color:var(--accent)">删除</button>')+'<button class="ghost" id="mCancel" style="flex:1">取消</button><button class="btn" id="mSave" style="flex:2">保存</button></div>', null);
+  renderEdMedia();
+  $("tCam").onclick=function(){ $("fCam").click(); };
+  $("tPhoto").onclick=function(){ $("fPhoto").click(); };
+  $("tVideo").onclick=function(){ $("fVideo").click(); };
+  $("tRec").onclick=function(){ if(rec) stopRec(); else startRec(); };
+  $("recStop").onclick=stopRec;
+  $("mCancel").onclick=function(){ if(rec) stopRec(); ED=null; closeSheet(); };
+  $("mSave").onclick=saveMem;
+  if($("mDel")) $("mDel").onclick=function(){ if(delArm!=="m"+ED.id){ delArm="m"+ED.id; toast("再点一次「删除」确认，照片视频也会一起删除",2500); setTimeout(function(){delArm=null;},2800); return; }
+    var mm=db.mems.filter(function(x){return x.id===ED.id;})[0], ids=mm?mm.media.map(function(x){return x.id;}):[];
+    db.mems=db.mems.filter(function(x){return x.id!==ED.id;}); persist(); putBlobs([],ids); var it=ED.item; ED=null; closeSheet(); toast("已删除"); refreshAfterMem(it); };
+}
+function renderEdMedia(){
+  var box=$("mMedia"); if(!box) return; box.innerHTML="";
+  ED.media.forEach(function(m,i){
+    var c=document.createElement("div"); c.className="cell";
+    c.innerHTML=(m.type==="audio"?"🎙️":m.type==="video"?"🎬":"")+(m.type!=="photo"?'<span class="lab">'+(m.type==="audio"?"录音 "+(m.dur||""):"视频")+'</span>':'')+'<button class="x" data-i="'+i+'">×</button>';
+    if(m.thumbURL){ c.style.backgroundImage='url("'+m.thumbURL+'")'; if(m.type==="video") c.firstChild.nodeType===3&&c.removeChild(c.firstChild); }
+    else if(m.saved && m.type!=="audio"){ blobURL(m.hasThumb?m.id+"_t":m.id).then(function(u){ if(u){ c.style.backgroundImage='url("'+u+'")'; if(c.firstChild&&c.firstChild.nodeType===3) c.removeChild(c.firstChild); } }); }
+    box.appendChild(c);
+  });
+  box.onclick=function(e){ var b=e.target.closest(".x"); if(!b) return; var m=ED.media.splice(+b.dataset.i,1)[0]; if(m.saved) ED.removed.push(m.id); renderEdMedia(); };
+}
+async function addPhotos(files){
+  if(!files.length||!ED) return; busy(true,"正在处理照片…");
+  for(var i=0;i<files.length;i++){ var p=await processPhoto(files[i]); ED.media.push({id:uid(),type:"photo",mime:p.mime,blob:p.blob,thumb:p.thumb,thumbURL:URL.createObjectURL(p.thumb||p.blob)}); }
+  busy(false); renderEdMedia();
+}
+$("fPhoto").onchange=function(){ var f=[].slice.call(this.files); this.value=""; addPhotos(f); };
+$("fCam").onchange=function(){ var f=[].slice.call(this.files); this.value=""; addPhotos(f); };
+$("fVideo").onchange=async function(){
+  var f=this.files[0]; this.value=""; if(!f||!ED) return;
+  if(f.size>150*1048576) toast("这个视频有 "+fmtSize(f.size)+"，会占用较多空间",3000);
+  busy(true,"正在读取视频…"); var th=await videoThumb(f);
+  ED.media.push({id:uid(),type:"video",mime:f.type||"video/mp4",blob:f,thumb:th,thumbURL:th?URL.createObjectURL(th):null});
+  busy(false); renderEdMedia();
 };
+async function startRec(){
+  if(!navigator.mediaDevices||!window.MediaRecorder){ toast("此设备不支持录音"); return; }
+  try{ recStream=await navigator.mediaDevices.getUserMedia({audio:true}); }catch(e){ toast("无法使用麦克风，请在设置中允许",2600); return; }
+  var mt=MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported("audio/mp4")?"audio/mp4":(MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported("audio/webm")?"audio/webm":"");
+  rec=mt?new MediaRecorder(recStream,{mimeType:mt}):new MediaRecorder(recStream); recChunks=[];
+  rec.ondataavailable=function(e){ if(e.data&&e.data.size) recChunks.push(e.data); };
+  rec.onstop=function(){ var type=(rec&&rec.mimeType)||mt||"audio/mp4", secs=Math.round((Date.now()-recStart)/1000), b=new Blob(recChunks,{type:type});
+    if(b.size&&ED) ED.media.push({id:uid(),type:"audio",mime:type.split(";")[0],blob:b,dur:Math.floor(secs/60)+":"+pad2(secs%60)});
+    recStream.getTracks().forEach(function(t){t.stop();}); rec=null; renderEdMedia(); };
+  rec.start(1000); recStart=Date.now();
+  $("recBar").hidden=false; $("tRec").classList.add("rec");
+  recTimer=setInterval(function(){ var s=Math.round((Date.now()-recStart)/1000); if($("recTime")) $("recTime").textContent=Math.floor(s/60)+":"+pad2(s%60); },500);
+}
+function stopRec(){ if(!rec) return; clearInterval(recTimer); if($("recBar")) $("recBar").hidden=true; if($("tRec")) $("tRec").classList.remove("rec"); try{ rec.stop(); }catch(e){ rec=null; } }
+async function saveMem(){
+  if(rec){ toast("请先停止录音"); return; }
+  var text=$("mText").value.replace(/\s+$/,"");
+  if(!text && !ED.media.length){ toast("写几句，或者加张照片吧"); return; }
+  var dv=$("mDate").value, d=ED.date; if(dv){ var p=dv.split("-"); d=dn(+p[0],+p[1],+p[2]); }
+  var m={id:ED.id,item:ED.item,date:d,text:text,at:Date.now(),
+    media:ED.media.map(function(x){ var o={id:x.id,type:x.type,mime:x.mime,hasThumb:!!(x.saved?x.hasThumb:x.thumb)}; if(x.dur) o.dur=x.dur; if(x.size||x.blob) o.size=x.size||x.blob.size; return o; })};
+  busy(true,"正在保存…");
+  try{
+    var list=[]; ED.media.forEach(function(x){ if(x.saved) return; list.push({id:x.id,blob:x.blob}); if(x.thumb) list.push({id:x.id+"_t",blob:x.thumb}); });
+    await putBlobs(list,ED.removed);
+    var old=db.mems.filter(function(x){return x.id===m.id;})[0];
+    if(old){ m.at=old.at; m.edited=Date.now(); db.mems=db.mems.map(function(x){ return x.id===m.id?m:x; }); } else db.mems.push(m);
+    db.dirtyMem=true; persist(); busy(false); var it=ED.item; ED=null; closeSheet(); toast("已保存 ✨"); refreshAfterMem(it);
+  }catch(e){ busy(false); toast("保存失败："+(e&&e.name==="QuotaExceededError"?"手机存储空间不够了":"请重试"),3000); }
+}
+function refreshAfterMem(itemId){ if($("v-mem").classList.contains("on")) renderMem(); else { renderHome(); if(itemId && findItem(itemId)) openItem(itemId); } }
+
+// ---------- 记录：展示 ----------
+function fmtDay(n){ var a=ymd(n); return a.y+"年"+a.m+"月"+a.d+"日"; }
+function memsFor(itemId){ return db.mems.filter(function(m){return m.item===itemId;}).sort(function(a,b){ return b.date-a.date||b.at-a.at; }); }
+function memHtml(m,showItem){
+  var media=m.media.map(function(x){ return '<div class="cell" data-thumb="'+(x.type==="audio"?"":(x.hasThumb?x.id+"_t":x.id))+'">'+(x.type==="audio"?"🎙️":x.type==="video"?"🎬":"")+(x.type!=="photo"?'<span class="lab">'+(x.type==="audio"?(x.dur||"录音"):"视频")+'</span>':'')+'</div>'; }).join("");
+  return '<div class="mem" data-mem="'+m.id+'"><div class="h"><span>'+(showItem?esc(itemEm(m.item))+' '+esc(itemName(m.item))+' · ':'')+fmtDay(m.date)+'</span><span>›</span></div>'+
+    (m.text?'<div class="tx">'+esc(m.text.length>120?m.text.slice(0,120)+"…":m.text)+'</div>':'')+(media?'<div class="ms">'+media+'</div>':'')+'</div>';
+}
+function fillThumbs(root){
+  [].forEach.call(root.querySelectorAll("[data-thumb]"),function(c){ var id=c.dataset.thumb; if(!id) return;
+    blobURL(id).then(function(u){ if(u){ c.style.backgroundImage='url("'+u+'")'; if(c.firstChild&&c.firstChild.nodeType===3) c.removeChild(c.firstChild); } }); });
+}
+document.addEventListener("click",function(e){
+  var r=e.target.closest("[data-mem]"); if(r){ viewMem(r.dataset.mem); return; }
+  var b=e.target.closest("[data-addmem]"); if(b){ openEditor(b.dataset.addmem); }
+});
+function viewMem(id){
+  var m=db.mems.filter(function(x){return x.id===id;})[0]; if(!m) return;
+  sheet('<div class="viewer"><h2>'+esc(itemEm(m.item))+' '+esc(itemName(m.item))+'</h2><p class="sub" style="margin:0">'+fmtDay(m.date)+' '+fmtW(m.date)+' · 农历'+fmtLunar(solarToLunar(m.date),false)+'</p>'+
+    (m.text?'<div class="tx" style="white-space:pre-wrap;line-height:1.7;margin-top:12px;font-size:16px">'+esc(m.text)+'</div>':'')+
+    '<div id="vMedia"></div></div>'+
+    '<div class="row" style="margin-top:14px"><button class="ghost" data-act="edit" style="flex:1">编辑</button><button class="btn" data-act="close" style="flex:1">关闭</button></div>',function(act){
+      if(act==="edit"){ closeSheet(); openEditor(m.item,m.id); } });
+  var box=$("vMedia");
+  m.media.forEach(function(x){
+    var el=document.createElement(x.type==="photo"?"img":x.type==="video"?"video":"audio");
+    if(x.type!=="photo"){ el.controls=true; el.setAttribute("playsinline",""); el.preload="metadata"; }
+    box.appendChild(el);
+    getBlob(x.id).then(function(b){ if(b) el.src=URL.createObjectURL(b); else { var p=document.createElement("p"); p.className="sub"; p.textContent="（这个文件找不到了，可以从导出的备份里恢复）"; el.replaceWith(p); } });
+  });
+}
+function renderTodayRec(){
+  var t=today(), list=[];
+  db.items.concat(festivals()).forEach(function(it){
+    var d=describe(it), o=d.o; if(o.date==null) return;
+    var last=null;
+    if(o.days===0) last=o.date;
+    else if(it.rep==="n" && o.days<0 && o.days>=-3) last=o.date;
+    else if(it.rep==="y"){ // 刚过去的几天：看去年周期
+      var pv=prevOcc(it); if(pv!=null && t-pv<=3 && t-pv>=0) last=pv;
+    }
+    if(last==null) return;
+    var has=db.mems.some(function(m){ return m.item===it.id && m.date>=last; });
+    list.push({it:it,d:d,day:last,has:has});
+  });
+  $("todayRec").innerHTML=list.map(function(x){
+    var when = x.day===t ? "今天是" : (t-x.day)+" 天前是";
+    return '<div class="rec-card"><div style="font-size:30px">'+esc(x.d.c.em)+'</div><div class="t">'+when+esc(x.it.name)+(x.d.extra&&x.day===t?" · "+x.d.extra:"")+' 🎉<small>'+(x.has?"已经记录过，还可以再加":"拍张照、录段话，把这一天留下来")+'</small></div><button class="btn" data-addmem="'+x.it.id+'" style="padding:9px 14px">'+(x.has?"再记一条":"记录一下")+'</button></div>';
+  }).join("");
+}
+function prevOcc(it){ // 每年重复的日子，最近一次已经过去的日期
+  var t=today();
+  if(it.cal==="l"){ var cur=solarToLunar(t).y, best=null;
+    for(var ly=cur-1;ly<=cur;ly++){ var d=it.d===0?lunarToSolar(ly+1,1,1,false)-1:lunarToSolar(ly,it.m,it.d,it.leap&&leapOf(ly)===it.m); if(d!=null&&d<=t) best=d; } return best; }
+  var y=ymd(t).y; for(var yy=y;yy>=y-1;yy--){ var n=dn(yy,it.m,Math.min(it.d,dimSolar(yy,it.m))); if(n<=t) return n; } return null;
+}
+var memF="all";
+function renderMem(){
+  var items={}; db.mems.forEach(function(m){ items[m.item]=1; });
+  var chips=[["all","全部"]].concat(Object.keys(items).map(function(id){ return [id,itemEm(id)+" "+itemName(id)]; }));
+  if(memF!=="all" && !items[memF]) memF="all";
+  $("memFilter").innerHTML=chips.length>1?chips.map(function(c){ return '<button data-mf="'+c[0]+'" class="'+(c[0]===memF?"on":"")+'">'+esc(c[1])+'</button>'; }).join(""):"";
+  var ms=db.mems.filter(function(m){ return memF==="all"||m.item===memF; }).sort(function(a,b){ return b.date-a.date||b.at-a.at; });
+  if(!ms.length){ $("memList").innerHTML='<div class="card"><div class="empty">还没有记录。<br>重要日子那天，首页会提醒你「记录一下」；<br>也可以在任意一个日子的详情里点「📷 记录」。</div></div>'; return; }
+  var h="", yr=null;
+  ms.forEach(function(m){ var y=ymd(m.date).y; if(y!==yr){ if(yr!==null) h+='</div>'; h+='<div class="sec">'+y+' 年</div><div class="card">'; yr=y; } h+=memHtml(m,true); });
+  $("memList").innerHTML=h+'</div>'; fillThumbs($("memList"));
+}
+$("memFilter").addEventListener("click",function(e){ var b=e.target.closest("button"); if(!b) return; memF=b.dataset.mf; renderMem(); });
+
+// ---------- 导出（zip：数据 + 照片视频录音 + 可在 Mac 上浏览的网页） ----------
+var CRC=(function(){ var t=new Uint32Array(256); for(var n=0;n<256;n++){ var c=n; for(var k=0;k<8;k++) c=c&1?0xEDB88320^(c>>>1):c>>>1; t[n]=c>>>0; } return t; })();
+async function crc32(blob){ var c=0xFFFFFFFF, step=4*1048576; for(var off=0;off<blob.size;off+=step){ var a=new Uint8Array(await blob.slice(off,off+step).arrayBuffer()); for(var i=0;i<a.length;i++) c=CRC[(c^a[i])&255]^(c>>>8); } return (c^0xFFFFFFFF)>>>0; }
+async function makeZip(files,progress){
+  var enc=new TextEncoder(), parts=[], central=[], offset=0, now=new Date();
+  var dtime=(now.getHours()<<11)|(now.getMinutes()<<5)|(now.getSeconds()>>1), ddate=((now.getFullYear()-1980)<<9)|((now.getMonth()+1)<<5)|now.getDate();
+  for(var i=0;i<files.length;i++){
+    if(progress) progress(i,files.length);
+    var f=files[i], name=enc.encode(f.name), blob=f.blob, crc=await crc32(blob), size=blob.size;
+    var h=new DataView(new ArrayBuffer(30));
+    h.setUint32(0,0x04034b50,true); h.setUint16(4,20,true); h.setUint16(6,0x0800,true); h.setUint16(8,0,true); h.setUint16(10,dtime,true); h.setUint16(12,ddate,true);
+    h.setUint32(14,crc,true); h.setUint32(18,size,true); h.setUint32(22,size,true); h.setUint16(26,name.length,true); h.setUint16(28,0,true);
+    parts.push(h.buffer,name,blob);
+    var c=new DataView(new ArrayBuffer(46));
+    c.setUint32(0,0x02014b50,true); c.setUint16(4,20,true); c.setUint16(6,20,true); c.setUint16(8,0x0800,true); c.setUint16(10,0,true); c.setUint16(12,dtime,true); c.setUint16(14,ddate,true);
+    c.setUint32(16,crc,true); c.setUint32(20,size,true); c.setUint32(24,size,true); c.setUint16(28,name.length,true); c.setUint16(30,0,true); c.setUint16(32,0,true); c.setUint16(34,0,true); c.setUint16(36,0,true); c.setUint32(38,0,true); c.setUint32(42,offset,true);
+    central.push(c.buffer,name); offset+=30+name.length+size;
+  }
+  var cdSize=central.reduce(function(s,x){ return s+x.byteLength; },0), e=new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true); e.setUint16(8,files.length,true); e.setUint16(10,files.length,true); e.setUint32(12,cdSize,true); e.setUint32(16,offset,true);
+  return new Blob(parts.concat(central,[e.buffer]),{type:"application/zip"});
+}
+async function readZip(file){
+  var tail=new DataView(await file.slice(Math.max(0,file.size-65557)).arrayBuffer()), p=-1;
+  for(var i=tail.byteLength-22;i>=0;i--){ if(tail.getUint32(i,true)===0x06054b50){ p=i; break; } }
+  if(p<0) throw new Error("不是有效的 zip 文件");
+  var n=tail.getUint16(p+10,true), cdSize=tail.getUint32(p+12,true), cdOff=tail.getUint32(p+16,true);
+  var cd=new DataView(await file.slice(cdOff,cdOff+cdSize).arrayBuffer()), dec=new TextDecoder(), out={}, q=0;
+  for(var k=0;k<n;k++){
+    if(cd.getUint32(q,true)!==0x02014b50) throw new Error("zip 结构损坏");
+    var method=cd.getUint16(q+10,true), csize=cd.getUint32(q+20,true), nl=cd.getUint16(q+28,true), xl=cd.getUint16(q+30,true), cl=cd.getUint16(q+32,true), lo=cd.getUint32(q+42,true);
+    out[dec.decode(new Uint8Array(cd.buffer,cd.byteOffset+q+46,nl))]={method:method,csize:csize,lo:lo}; q+=46+nl+xl+cl;
+  }
+  async function get(name,type){ var r=out[name]; if(!r) return null; if(r.method!==0) throw new Error("这个 zip 被重新压缩过，请使用 App 导出的原始文件");
+    var lh=new DataView(await file.slice(r.lo,r.lo+30).arrayBuffer()), start=r.lo+30+lh.getUint16(26,true)+lh.getUint16(28,true); return file.slice(start,start+r.csize,type||""); }
+  return {names:Object.keys(out),get:get};
+}
+function extOf(m){ var map={"image/jpeg":"jpg","image/png":"png","image/heic":"heic","image/heif":"heif","image/gif":"gif","image/webp":"webp","video/mp4":"mp4","video/quicktime":"mov","video/webm":"webm","audio/mp4":"m4a","audio/x-m4a":"m4a","audio/aac":"aac","audio/webm":"webm","audio/mpeg":"mp3","audio/wav":"wav"}; return map[(m||"").split(";")[0]]||"bin"; }
+function viewerHTML(rows,title){
+  var json=JSON.stringify(rows).replace(/</g,"\\u003c");
+  return '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+esc(title)+'</title><style>'+
+    'body{margin:0;background:#fbf5f2;color:#2a2224;font-family:-apple-system,"PingFang SC","Helvetica Neue",sans-serif}'+
+    '@media (prefers-color-scheme:dark){body{background:#171314;color:#f5eeef}.e{background:#231d1f!important}.m{color:#a59a9c!important}}'+
+    '.w{max-width:780px;margin:0 auto;padding:30px 20px 60px}h1{font-size:30px;margin:0 0 4px}.m{color:#958a8c;font-size:14px}'+
+    'h2{font-size:15px;color:#958a8c;margin:30px 4px 10px}.e{background:#fff;border-radius:16px;padding:18px 22px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.05)}'+
+    '.d{font-weight:700;font-size:17px}.t{white-space:pre-wrap;line-height:1.75;font-size:16px;margin:10px 0}'+
+    '.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin-top:10px}.g img,.g video{width:100%;border-radius:10px;background:#000}.g img{height:220px;object-fit:cover;cursor:zoom-in}audio{width:100%;margin-top:8px}'+
+    '#z{position:fixed;inset:0;background:rgba(0,0,0,.9);display:none;align-items:center;justify-content:center;cursor:zoom-out}#z img{max-width:96%;max-height:96%}'+
+    '</style></head><body><div class="w"><h1>'+esc(title)+'</h1><div class="m" id="sum"></div><div id="list"></div></div><div id="z" onclick="this.style.display=\'none\'"><img id="zi"></div><scr'+'ipt>'+
+    'var R='+json+';function e(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;","\\"":"&quot;"}[c]})}'+
+    'document.getElementById("sum").textContent="共 "+R.length+" 条记录 · 导出于 '+new Date().toLocaleString("zh-CN")+'";var h="",y=null;'+
+    'R.forEach(function(r){if(r.y!==y){h+="<h2>"+r.y+" 年</h2>";y=r.y}h+="<div class=e><div class=d>"+e(r.em+" "+r.name)+"</div><div class=m>"+e(r.date)+"</div>"+(r.text?"<div class=t>"+e(r.text)+"</div>":"")+'+
+    '"<div class=g>"+r.media.filter(function(m){return m.type!=="audio"}).map(function(m){return m.type==="photo"?"<img src=\\""+encodeURI(m.path)+"\\" onclick=\\"z(this.src)\\">":"<video controls preload=metadata src=\\""+encodeURI(m.path)+"\\"></video>"}).join("")+"</div>"+'+
+    'r.media.filter(function(m){return m.type==="audio"}).map(function(m){return "<audio controls src=\\""+encodeURI(m.path)+"\\"></audio>"}).join("")+"</div>"});'+
+    'document.getElementById("list").innerHTML=h||"<p class=m>还没有记录。</p>";function z(s){document.getElementById("zi").src=s;document.getElementById("z").style.display="flex"}'+
+    '<\/script></body></html>';
+}
+function stamp(){ var a=ymd(today()); return a.y+"-"+pad2(a.m)+"-"+pad2(a.d); }
+$("exportJson").onclick=async function(){
+  busy(true,"正在打包…");
+  try{
+    var files=[], paths={}, rows=[], who=(db.name||"我");
+    var ms=db.mems.slice().sort(function(a,b){ return b.date-a.date||b.at-a.at; });
+    for(var i=0;i<ms.length;i++){
+      var m=ms[i], a=ymd(m.date), base=a.y+"-"+pad2(a.m)+"-"+pad2(a.d)+"_"+itemName(m.item).replace(/[\\\/:*?"<>|]/g,"").slice(0,20);
+      var row={y:a.y,date:fmtDay(m.date)+" "+fmtW(m.date),name:itemName(m.item),em:itemEm(m.item),text:m.text,media:[]};
+      for(var k=0;k<m.media.length;k++){
+        var x=m.media[k], b=await getBlob(x.id); if(!b) continue;
+        var path="照片视频录音/"+base+"_"+(k+1)+"."+extOf(x.mime||b.type);
+        files.push({name:path,blob:b}); paths[x.id]=path; row.media.push({type:x.type,path:path});
+        if(x.hasThumb){ var tb=await getBlob(x.id+"_t"); if(tb){ files.push({name:"照片视频录音/缩略图/"+x.id+".jpg",blob:tb}); paths[x.id+"_t"]="照片视频录音/缩略图/"+x.id+".jpg"; } }
+      }
+      rows.push(row);
+      busy(true,"正在打包… "+(i+1)+"/"+ms.length);
+    }
+    var data={app:"rizi",v:2,at:Date.now(),db:db,paths:paths};
+    files.unshift({name:"重要日子记录.html",blob:new Blob([viewerHTML(rows,who+"的重要日子记录")],{type:"text/html"})});
+    files.unshift({name:"data.json",blob:new Blob([JSON.stringify(data)],{type:"application/json"})});
+    var zip=await makeZip(files,function(i,n){ busy(true,"正在打包… "+Math.round(i/n*100)+"%"); });
+    busy(false);
+    var name="重要日子-"+stamp()+".zip", f=null; try{ f=new File([zip],name,{type:"application/zip"}); }catch(e){}
+    var mark=function(){ db.lastBackup=Date.now(); delete db.bkSnooze; db.dirtyMem=false; persist(); renderSet(); checkBackup(); };
+    if(f && navigator.canShare && navigator.canShare({files:[f]})){ navigator.share({files:[f]}).then(function(){ mark(); toast("已导出 📦"); }).catch(function(err){ if(err && err.name!=="AbortError"){ dl(zip,name); mark(); } }); }
+    else { dl(zip,name); mark(); toast("已导出 📦"); }
+  }catch(e){ busy(false); toast("导出失败："+(e.message||"请重试"),3000); }
+};
+function dl(blob,name){ var a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(function(){ a.remove(); },1000); }
 $("importBtn").onclick=function(){ $("importFile").click(); };
-$("importFile").onchange=function(){
-  var f=this.files[0]; if(!f) return; var r=new FileReader();
-  r.onload=function(){ try{ var o=JSON.parse(r.result); if(o.app!=="rizi"||!o.db) throw 0;
-    sheet('<h2>从备份恢复？</h2><p class="sub">备份里有 '+(o.db.items||[]).length+' 个日子。恢复后会替换这台手机上现在的内容。</p><div class="row"><button class="ghost" data-act="close" style="flex:1">取消</button><button class="btn" data-act="ok" style="flex:1">恢复</button></div>',function(act){
-      if(act!=="ok") return; localStorage.setItem(KEY,JSON.stringify(o.db)); load(); closeSheet(); toast("已恢复"); goView("home"); });
-  }catch(e){ toast("这不是重要日子的备份文件",2500); } };
-  r.readAsText(f); this.value="";
+$("importFile").onchange=async function(){
+  var f=this.files[0]; this.value=""; if(!f) return;
+  try{
+    var o, zip=null;
+    if(/\.zip$/i.test(f.name) || f.type==="application/zip"){ zip=await readZip(f); var dj=await zip.get("data.json"); if(!dj) throw 0; o=JSON.parse(await dj.text()); }
+    else o=JSON.parse(await f.text());
+    if(o.app!=="rizi"||!o.db) throw 0;
+    var nm=(o.db.mems||[]).length;
+    sheet('<h2>从备份恢复？</h2><p class="sub">备份里有 '+(o.db.items||[]).length+' 个日子、'+nm+' 条记录。恢复后会替换这台手机上现在的内容。</p><div class="row"><button class="ghost" data-act="close" style="flex:1">取消</button><button class="btn" data-act="ok" style="flex:1">恢复</button></div>',async function(act){
+      if(act!=="ok") return; closeSheet();
+      try{
+        if(zip && o.paths){ var ids=Object.keys(o.paths), batch=[];
+          for(var i=0;i<ids.length;i++){ busy(true,"正在恢复照片视频… "+(i+1)+"/"+ids.length); var b=await zip.get(o.paths[ids[i]]); if(b){ batch.push({id:ids[i],blob:new Blob([b],{type:mimeFor(ids[i],o.db)})}); } if(batch.length>=10){ await putBlobs(batch); batch=[]; } }
+          if(batch.length) await putBlobs(batch); }
+        localStorage.setItem(KEY,JSON.stringify(o.db)); load(); urlCache={}; busy(false); toast("已恢复"); goView("home");
+      }catch(e){ busy(false); toast("恢复失败："+(e.message||"请重试"),3000); }
+    });
+  }catch(e){ toast(e&&e.message&&/zip/.test(e.message)?e.message:"这不是重要日子的备份文件",3000); }
 };
+function mimeFor(id,d){ var t=""; (d.mems||[]).forEach(function(m){ m.media.forEach(function(x){ if(x.id===id) t=x.mime; else if(x.id+"_t"===id) t="image/jpeg"; }); }); return t; }
+function unexported(){ var lb=db.lastBackup||0; return db.mems.filter(function(m){ return (m.edited||m.at)>lb; }); }
 function checkBackup(){
-  var now=Date.now(), since=db.lastBackup||db.created, days=Math.floor((now-since)/DAY);
-  var show=db.items.length>0 && days>=30 && !(db.bkSnooze && now<db.bkSnooze);
-  $("bkCard").hidden=!show;
-  if(show) $("bkText").textContent=db.lastBackup?"📦 已经 "+days+" 天没有备份了，花 10 秒备份一下吧。":"📦 用了一个月啦，记得备份一次，换手机时能恢复。";
+  var now=Date.now(), since=db.lastBackup||db.created, days=Math.floor((now-since)/DAY), ue=unexported();
+  var oldest=ue.reduce(function(mn,m){ return Math.min(mn,m.edited||m.at); },now), ueDays=Math.floor((now-oldest)/DAY);
+  var snoozed=db.bkSnooze && now<db.bkSnooze, msg="";
+  if(ue.length && ueDays>=3) msg="📦 有 "+ue.length+" 条记录（照片、视频、录音）还没导出。手机丢了或换机时会找不回来，导出一份存到电脑或「文件」吧。";
+  else if((db.items.length||db.mems.length) && days>=30) msg=db.lastBackup?"📦 已经 "+days+" 天没有导出了，花一分钟导出一份吧。":"📦 用了一个月啦，记得导出一次，换手机时能恢复。";
+  var show=!!msg && !snoozed;
+  $("bkCard").hidden=!show; if(show) $("bkText").textContent=msg;
 }
 $("bkGo").onclick=function(){ goView("set"); };
 $("bkLater").onclick=function(){ db.bkSnooze=Date.now()+3*DAY; persist(); checkBackup(); };
@@ -512,7 +862,7 @@ function goView(v){
   [].forEach.call(document.querySelectorAll(".view"),function(s){ s.classList.toggle("on",s.id==="v-"+v); });
   [].forEach.call($("tabs").children,function(b){ b.classList.toggle("on",b.dataset.v===v); });
   $("fab").style.display = v==="home"?"":"none";
-  if(v==="home") renderHome(); else renderSet();
+  if(v==="home") renderHome(); else if(v==="mem") renderMem(); else renderSet();
   window.scrollTo(0,0);
 }
 $("tabs").addEventListener("click",function(e){ var b=e.target.closest("button"); if(b) goView(b.dataset.v); });
