@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="重要日子">
+<meta name="theme-color" content="#fbf5f2">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>重要日子</title>
+<style>
+  :root{ --bg:#fbf5f2; --card:#fff; --ink:#2a2224; --muted:#958a8c; --line:#efe4e0;
+    --accent:#e03a3e; --soft:#fde9e6; --g1:#ff8a65; --g2:#f05478; --warn:#e0912b; --ok:#2e9c6a; }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#171314; --card:#231d1f; --ink:#f5eeef; --muted:#a59a9c; --line:#382f31; --soft:#33242a; --accent:#ff6b6e; }
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",sans-serif;font-size:16px}
+  body{padding:env(safe-area-inset-top) 0 calc(76px + env(safe-area-inset-bottom))}
+  main{max-width:560px;margin:0 auto;padding:16px}
+  h1{font-size:22px;margin:8px 4px 14px}
+  h2{font-size:17px;margin:0 0 10px}
+  .sub{color:var(--muted);font-size:14px;line-height:1.55;margin:0 0 10px}
+  .hero{background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff;border-radius:20px;padding:18px;margin:4px 0 14px}
+  .hero .t{font-size:22px;font-weight:800}
+  .hero .s{opacity:.92;margin-top:6px;font-size:15px}
+  .card{background:var(--card);border-radius:16px;padding:6px 16px;margin-bottom:14px}
+  .card.pad{padding:16px}
+  .card.bk{border:1.5px dashed var(--accent);padding:16px}
+  .sec{font-size:14px;color:var(--muted);margin:16px 4px 8px;font-weight:600}
+  .it{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--line)}
+  .it:last-child{border-bottom:0}
+  .it .em{font-size:26px;width:34px;text-align:center;flex:none}
+  .it .mid{flex:1;min-width:0}
+  .it .nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .it .dt{font-size:13px;color:var(--muted);margin-top:2px}
+  .it .rt{text-align:right;flex:none}
+  .it .rt b{font-size:24px;font-variant-numeric:tabular-nums}
+  .it .rt small{display:block;font-size:12px;color:var(--muted)}
+  .it.hot .rt b{color:var(--accent)}
+  .it.today .rt b{color:var(--accent);font-size:18px}
+  .it.over .rt b{color:var(--accent)}
+  .it.past .nm,.it.past .rt b{color:var(--muted)}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .chips button{border:1px solid var(--line);background:var(--card);color:var(--ink);padding:7px 13px;border-radius:999px;font-size:14px}
+  .chips button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .chips.scroll{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+  .chips.scroll button{flex:none}
+  button{font-family:inherit}
+  .btn{border:0;background:var(--accent);color:#fff;border-radius:12px;padding:12px 16px;font-size:16px;font-weight:600}
+  .ghost{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:11px 14px;font-size:15px}
+  .full{width:100%}
+  .row{display:flex;gap:10px;align-items:center}
+  select,input,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:16px;width:100%}
+  label.f{display:block;font-size:13px;color:var(--muted);margin:12px 0 5px}
+  .fab{position:fixed;right:20px;bottom:calc(84px + env(safe-area-inset-bottom));width:58px;height:58px;border-radius:50%;border:0;background:var(--accent);color:#fff;font-size:32px;box-shadow:0 6px 16px rgba(224,58,62,.35);z-index:6}
+  .tabs{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom);z-index:5}
+  .tabs button{flex:1;border:0;background:none;padding:9px 0 8px;color:var(--muted);font-size:12px}
+  .tabs button b{display:block;font-size:21px;font-weight:400;margin-bottom:1px}
+  .tabs button.on{color:var(--accent)}
+  .view{display:none}.view.on{display:block}
+  .sheet{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:30;display:none;align-items:flex-end;justify-content:center}
+  .sheet.on{display:flex}
+  .sheet .in{background:var(--card);width:100%;max-width:560px;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:90vh;overflow:auto}
+  .toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 14px);transform:translateX(-50%);background:rgba(30,20,22,.9);color:#fff;padding:10px 16px;border-radius:12px;font-size:15px;z-index:50;display:none;max-width:90%}
+  .big{text-align:center;padding:10px 0 4px}
+  .big .e{font-size:44px}
+  .big .n{font-size:22px;font-weight:700;margin-top:4px}
+  .big .d{font-size:56px;font-weight:800;color:var(--accent);font-variant-numeric:tabular-nums;margin-top:6px}
+  .big .d small{font-size:18px;font-weight:600;color:var(--muted);margin-left:4px}
+  .kv{background:var(--bg);border-radius:12px;padding:6px 14px;margin-top:12px}
+  .kv div{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px;gap:12px}
+  .kv div:last-child{border-bottom:0}
+  .kv span{color:var(--muted);flex:none}
+  .kv b{font-weight:500;text-align:right}
+  .seg{display:flex;background:var(--bg);border-radius:12px;padding:4px}
+  .seg button{flex:1;border:0;background:none;padding:9px;border-radius:9px;font-size:15px;color:var(--muted);font-weight:600}
+  .seg button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .three{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:8px}
+  .chk{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:15px}
+  .chk input{width:20px;height:20px}
+  .welcome{position:fixed;inset:0;background:var(--bg);z-index:60;display:none;align-items:center;justify-content:center;padding:24px}
+  .welcome.on{display:flex}
+  .empty{text-align:center;padding:30px 10px;color:var(--muted);line-height:1.7}
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+<main>
+  <section class="view on" id="v-home">
+    <div class="hero"><div class="t" id="heroT">重要日子</div><div class="s" id="heroS"></div></div>
+    <div class="card bk" id="bkCard" hidden>
+      <div id="bkText"></div>
+      <div class="row" style="margin-top:10px"><button class="ghost" id="bkGo" style="flex:1">去备份</button><button class="ghost" id="bkLater" style="flex:1">过几天再说</button></div>
+    </div>
+    <div class="chips scroll" id="filter"></div>
+    <div id="lists"></div>
+  </section>
+  <section class="view" id="v-set">
+    <h1>设置与备份</h1>
+    <div class="card pad">
+      <label class="f" style="margin-top:0">称呼（首页显示「XX的重要日子」）</label>
+      <input id="setName">
+      <div class="chk"><input type="checkbox" id="setFest"><label for="setFest">显示传统节日（春节、元宵、端午、七夕、中秋、重阳、腊八、除夕）</label></div>
+    </div>
+    <div class="card pad">
+      <div class="row" style="justify-content:space-between"><h2 style="margin:0">分类</h2><button class="ghost" id="addCat" style="padding:7px 12px">＋ 新分类</button></div>
+      <p class="sub" style="margin-top:8px">点分类可以改名字、图标和默认设置。</p>
+      <div id="catList"></div>
+    </div>
+    <div class="card pad">
+      <h2>备份</h2>
+      <p class="sub">数据只保存在这台手机上。建议每月导出一次备份，存到「文件」或发给自己。换手机时用「从备份恢复」。</p>
+      <div class="row"><button class="ghost" id="exportJson" style="flex:1">导出备份</button><button class="ghost" id="importBtn" style="flex:1">从备份恢复</button></div>
+      <input type="file" id="importFile" accept=".json,application/json" hidden>
+      <p class="sub" id="countInfo" style="margin-top:10px"></p>
+    </div>
+    <p class="sub" style="text-align:center">网页 App 不能在锁屏弹通知，提醒在打开 App 时显示。<br>特别重要的日子，可以再在 iPhone「提醒事项」里设一条。</p>
+  </section>
+</main>
+<button class="fab" id="fab">＋</button>
+<nav class="tabs" id="tabs">
+  <button data-v="home" class="on"><b>📅</b>日子</button>
+  <button data-v="set"><b>⚙️</b>设置</button>
+</nav>
+<div class="sheet" id="sheet"><div class="in" id="sheetIn"></div></div>
+<div class="welcome" id="welcome">
+  <div class="card pad" style="width:100%;max-width:420px">
+    <h2>👋 欢迎使用重要日子</h2>
+    <p class="sub">先告诉我怎么称呼你。生日、纪念日、证件到期、倒数日都可以记在这里，农历生日会自动换算成每年的公历日期。</p>
+    <input id="wName" placeholder="比如：老赵">
+    <button class="btn full" id="wGo" style="margin-top:14px">开始</button>
+  </div>
+</div>
+<script>
+(function(){
+"use strict";
+var LT = [[null,5842,8],[-25153,1874,0],[-24799,3749,0],[-24444,5706,5],[-24061,1611,0],[-23707,2715,0],[-23352,5462,4],[-22968,1386,0],[-22614,2905,0],[-22259,5970,2],[-21875,1874,0],[-21521,6949,6],[-21137,2853,0],[-20783,2635,0],[-20429,5291,5],[-20045,685,0],[-19691,1387,0],[-19336,2921,2],[-18952,3497,0],[-18597,7570,7],[-18213,3730,0],[-17859,3365,0],[-17505,6733,5],[-17121,2646,0],[-16767,694,0],[-16413,5557,4],[-16028,1748,0],[-15674,3753,0],[-15319,7826,2],[-14935,3730,0],[-14581,3366,6],[-14198,1323,0],[-13844,2647,0],[-13489,4790,5],[-13105,2906,0],[-12750,1748,0],[-12396,3785,3],[-12012,1865,0],[-11658,5779,7],[-11274,2707,0],[-10920,1323,0],[-10566,2651,6],[-10182,2733,0],[-9827,1386,0],[-9473,6997,4],[-9088,2980,0],[-8734,2889,0],[-8380,6803,2],[-7996,2709,0],[-7642,5421,7],[-7258,1334,0],[-6904,2733,0],[-6549,5546,5],[-6165,1458,0],[-5811,3493,0],[-5456,7498,3],[-5072,3402,0],[-4718,2709,8],[-4335,2711,0],[-3980,1366,0],[-3626,2741,6],[-3242,2773,0],[-2887,1746,0],[-2533,3749,4],[-2149,3749,0],[-1794,1610,0],[-1441,3223,3],[-1057,2715,0],[-702,5466,7],[-318,1386,0],[36,2921,0],[391,5970,5],[775,2898,0],[1129,2853,0],[1483,5707,4],[1867,2635,0],[2221,5291,8],[2605,685,0],[2959,1389,0],[3314,2921,6],[3698,3497,0],[4053,3474,0],[4407,7461,4],[4791,3365,0],[5145,6733,10],[5529,2646,0],[5883,694,0],[6237,1461,6],[6621,1749,0],[6976,3753,0],[7331,7826,5],[7715,3730,0],[8069,3366,0],[8423,2646,3],[8806,2647,0],[9161,5334,8],[9545,858,0],[9899,1749,0],[10254,5833,5],[10638,1865,0],[10992,1683,0],[11346,5419,4],[11730,1323,0],[12084,2651,0],[12439,5466,2],[12823,1386,0],[13177,6997,7],[13562,2980,0],[13916,2889,0],[14270,6803,5],[14654,2709,0],[15008,1325,0],[15362,2733,4],[15746,2741,0],[16101,5546,9],[16485,1490,0],[16839,3493,0],[17194,7498,6],[17578,3402,0],[17932,3221,0],[18286,5422,4],[18670,1366,0],[19024,2741,0],[19379,5554,2],[19763,1746,0],[20117,3749,6],[20501,1829,0],[20855,1611,0],[21209,3223,5],[21593,3243,0],[21948,1370,0],[22302,2774,3],[22686,2921,0],[23041,5970,11],[23425,2898,0],[23779,2853,0],[24133,6731,6],[24517,2635,0],[24871,1195,0],[25225,1371,5],[25609,1453,0],[25964,2922,0],[26319,6994,2],[26703,3474,0],[27057,7461,7],[27441,3365,0],[27795,2645,0],[28149,5293,5],[28533,1206,0],[28887,1461,0],[29242,3498,3],[29626,3785,0],[29981,7826,8],[30365,3730,0],[30719,3366,0],[31073,2646,6],[31456,2647,0],[31811,1366,0],[32165,1749,4],[32549,1877,0],[32904,1865,0],[33258,3731,3],[33642,1683,0],[33996,5419,7],[34380,1323,0],[34734,2651,0],[35089,5466,5],[35473,1386,0],[35827,2917,0],[36182,5962,4],[36566,2890,0],[36920,6805,8],[37304,2709,0],[37658,1325,0],[38012,2733,6],[38396,2741,0],[38751,1450,0],[39105,2981,4],[39489,3493,0],[39844,3402,0],[40198,7317,3],[40582,3222,0],[40936,6478,7],[41320,1366,0],[41674,2741,0],[42029,5554,5],[42413,1746,0],[42767,3749,0],[43122,3658,4],[43505,1675,0],[43859,3223,8],[44243,1195,0],[44597,1371,0],[44952,2774,6],[45336,2922,0],[45691,1874,0],[46045,5925,4],[46429,2885,0],[46783,2699,0],[47137,5275,2],[47521,1195,0]];  // 1900–2100：[正月初一距1970-01-01天数, 大小月位, 闰月]
+var KEY="rizi.v1", DAY=86400000;
+var $=function(id){ return document.getElementById(id); };
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
+function toast(t,ms){ var e=$("toast"); e.textContent=t; e.style.display="block"; clearTimeout(toast.t); toast.t=setTimeout(function(){e.style.display="none";},ms||1800); }
+
+// ---------- 日期工具（全部按“天”计算，避免时区问题） ----------
+function today(){ var d=new Date(); return Math.floor(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/DAY); }
+function dn(y,m,d){ return Math.floor(Date.UTC(y,m-1,d)/DAY); }
+function ymd(n){ var d=new Date(n*DAY); return {y:d.getUTCFullYear(),m:d.getUTCMonth()+1,d:d.getUTCDate(),w:d.getUTCDay()}; }
+function dimSolar(y,m){ return new Date(Date.UTC(y,m,0)).getUTCDate(); }
+var WK="日一二三四五六";
+function fmtSolar(n,withYear){ var a=ymd(n); return (withYear?a.y+"年":"")+a.m+"月"+a.d+"日"; }
+function fmtW(n){ return "星期"+WK[ymd(n).w]; }
+
+// ---------- 农历 ----------
+function lyMonths(ly){ // 返回该农历年的月份列表 [{m,leap,len,start}]
+  var r=LT[ly-1900]; if(!r) return null;
+  var n=r[0], bits=r[1], leap=r[2], out=[], cnt=leap?13:12, m=1;
+  for(var i=0;i<cnt;i++){
+    var isLeap = leap && i===leap; // 闰月排在同名月之后
+    var len=(bits>>i&1)?30:29;
+    out.push({m:isLeap?leap:m, leap:isLeap, len:len, start:n});
+    n+=len; if(!isLeap) m++;
+  }
+  // 修正：闰月出现时，后面的月份序号已经在上面处理
+  return out;
+}
+function lunarToSolar(ly,m,d,leap){ // 返回天数；不存在的日子顺延到当月最后一天
+  var ms=lyMonths(ly); if(!ms) return null;
+  var mo=null;
+  ms.forEach(function(x){ if(x.m===m && !!x.leap===!!leap) mo=x; });
+  if(!mo) ms.forEach(function(x){ if(x.m===m && !x.leap) mo=x; });
+  if(!mo) return null;
+  return mo.start+Math.min(d,mo.len)-1;
+}
+function solarToLunar(n){
+  var lo=0, hi=LT.length-1;
+  while(lo<hi){ var mid=(lo+hi+1)>>1; if(LT[mid][0]<=n) lo=mid; else hi=mid-1; }
+  var ly=1900+lo, ms=lyMonths(ly);
+  for(var i=ms.length-1;i>=0;i--) if(ms[i].start<=n) return {y:ly,m:ms[i].m,d:n-ms[i].start+1,leap:ms[i].leap};
+  return null;
+}
+var LM="正二三四五六七八九十冬腊", GZ_T="甲乙丙丁戊己庚辛壬癸", GZ_D="子丑寅卯辰巳午未申酉戌亥", SX="鼠牛虎兔龙蛇马羊猴鸡狗猪";
+function lmName(m,leap){ return (leap?"闰":"")+LM[m-1]+"月"; }
+function ldName(d){ if(d===10) return "初十"; if(d===20) return "二十"; if(d===30) return "三十";
+  var t=["初","十","廿"][Math.floor(d/10)], u="一二三四五六七八九"[d%10-1]; return t+u; }
+function fmtLunar(l,withYear){ return (withYear? GZ_T[(l.y-4)%10]+GZ_D[(l.y-4)%12]+"年（"+SX[(l.y-4)%12]+"）":"")+lmName(l.m,l.leap)+ldName(l.d); }
+function leapOf(ly){ var r=LT[ly-1900]; return r?r[2]:0; }
+
+// ---------- 数据 ----------
+var DEFAULT_CATS=[
+  {id:"bd",name:"生日",em:"🎂",rep:"y",remind:7,age:1},
+  {id:"an",name:"纪念日",em:"💍",rep:"y",remind:3,age:0},
+  {id:"ex",name:"证件到期",em:"📄",rep:"n",remind:30,age:0,expire:1},
+  {id:"pay",name:"缴费",em:"💳",rep:"y",remind:7,age:0},
+  {id:"cd",name:"倒数日",em:"⏳",rep:"n",remind:0,age:0}
+];
+var FEST=[["春节",1,1],["元宵节",1,15],["端午节",5,5],["七夕",7,7],["中秋节",8,15],["重阳节",9,9],["腊八节",12,8],["除夕",12,0]];
+var db;
+function load(){
+  try{ db=JSON.parse(localStorage.getItem(KEY)||"null"); }catch(e){ db=null; }
+  if(!db) db={};
+  db.items=db.items||[];
+  db.cats=db.cats||JSON.parse(JSON.stringify(DEFAULT_CATS));
+  if(db.fest==null) db.fest=true;
+  if(!db.nextId) db.nextId=1;
+  if(!db.created) db.created=Date.now();
+}
+function persist(){ try{ localStorage.setItem(KEY,JSON.stringify(db)); }catch(e){ toast("保存失败",2500); } }
+load();
+function cat(id){ return db.cats.filter(function(c){return c.id===id;})[0] || {id:id,name:"其他",em:"📌",rep:"n",remind:0}; }
+
+// ---------- 计算下一次 ----------
+// item: {id,name,cat,cal:"s"|"l",y,m,d,leap,rep:"y"|"m"|"n",remind,note}
+function occurrence(it){
+  var t=today(), r={};
+  if(it.rep==="n"){
+    var n = it.cal==="l" ? lunarToSolar(it.y,it.m,it.d,it.leap) : dn(it.y,it.m,it.d);
+    r.date=n; r.days=n-t; return r;
+  }
+  if(it.rep==="m"){
+    var a=ymd(t), y=a.y, m=a.m;
+    for(var k=0;k<3;k++){ var d=Math.min(it.d,dimSolar(y,m)), n2=dn(y,m,d); if(n2>=t){ r.date=n2; r.days=n2-t; return r; } m++; if(m>12){m=1;y++;} }
+  }
+  // 每年
+  if(it.cal==="l"){
+    var cur=solarToLunar(t).y;
+    for(var ly=cur-1;ly<=cur+1;ly++){
+      var d2 = it.d===0 ? lunarToSolar(ly+1,1,1,false)-1 : lunarToSolar(ly,it.m,it.d,it.leap && leapOf(ly)===it.m);
+      if(d2!=null && d2>=t){ r.date=d2; r.days=d2-t; r.cycleY=ly; break; }
+    }
+  } else {
+    var yy=ymd(t).y;
+    for(var y2=yy;y2<=yy+1;y2++){ var dd=Math.min(it.d,dimSolar(y2,it.m)), n3=dn(y2,it.m,dd); if(n3>=t){ r.date=n3; r.days=n3-t; r.cycleY=y2; break; } }
+  }
+  if(it.y && r.cycleY) r.count=r.cycleY-it.y;
+  return r;
+}
+function originDay(it){ if(!it.y) return null; return it.cal==="l" ? lunarToSolar(it.y,it.m,it.d,it.leap) : dn(it.y,it.m,it.d); }
+function festivals(){
+  if(!db.fest) return [];
+  return FEST.map(function(f,i){ return {id:"f"+i,name:f[0],cat:"__fest",cal:"l",m:f[1],d:f[2],rep:"y",remind:7,fest:1}; });
+}
+function describe(it){
+  var c=it.fest?{em:"🏮",name:"节日"}:cat(it.cat), o=occurrence(it), s="";
+  if(o.date==null) return {o:o,c:c,big:"—",unit:"",line:"日期超出范围"};
+  var big,unit;
+  if(o.days===0){ big="今天"; unit=""; }
+  else if(o.days>0){ big=o.days; unit="天后"; }
+  else { big=-o.days; unit = c.expire ? "天前过期" : "天前"; }
+  // 日期说明
+  var dateTxt=fmtSolar(o.date, ymd(o.date).y!==ymd(today()).y)+" "+fmtW(o.date);
+  if(it.cal==="l") dateTxt += " · 农历"+(it.d===0?"腊月最后一天":lmName(it.m,it.leap)+ldName(it.d));
+  var extra="";
+  if(o.count>0) extra = c.age ? "满 "+o.count+" 岁" : "第 "+o.count+" 周年";
+  return {o:o,c:c,big:big,unit:unit,date:dateTxt,extra:extra};
+}
+
+// ---------- 首页 ----------
+var filt="all";
+function renderHome(){
+  var t=today(), l=solarToLunar(t);
+  $("heroT").textContent=(db.name||"我")+"的重要日子";
+  $("heroS").textContent=fmtSolar(t,true)+" "+fmtW(t)+" · 农历"+fmtLunar(l,false);
+  var cats=[["all","全部"]].concat(db.cats.map(function(c){ return [c.id,c.em+" "+c.name]; }));
+  if(db.fest) cats.push(["__fest","🏮 节日"]);
+  $("filter").innerHTML=cats.map(function(c){ return '<button data-c="'+c[0]+'" class="'+(c[0]===filt?"on":"")+'">'+esc(c[1])+'</button>'; }).join("");
+  var all=db.items.concat(festivals()).filter(function(it){ return filt==="all" || (filt==="__fest"?it.fest:it.cat===filt); });
+  var rows=all.map(function(it){ return {it:it,d:describe(it)}; });
+  var soon=[],later=[],past=[];
+  rows.forEach(function(r){
+    var o=r.d.o, rem=r.it.remind||0;
+    if(o.date==null){ later.push(r); return; }
+    if(o.days<0){ (r.d.c.expire && o.days>=-90 ? soon : past).push(r); return; }
+    if(o.days<=rem || o.days===0) soon.push(r); else later.push(r);
+  });
+  var by=function(a,b){ return (a.d.o.days==null?1e9:a.d.o.days)-(b.d.o.days==null?1e9:b.d.o.days); };
+  soon.sort(by); later.sort(by); past.sort(function(a,b){ return b.d.o.days-a.d.o.days; });
+  var h="";
+  if(!rows.length) h='<div class="card"><div class="empty">还没有记录。<br>点右下角的 ＋ 添加第一个重要日子吧。</div></div>';
+  if(soon.length) h+='<div class="sec">🔔 快到了</div><div class="card">'+soon.map(rowHtml).join("")+'</div>';
+  if(later.length) h+='<div class="sec">'+(soon.length?"以后":"接下来")+'</div><div class="card">'+later.map(rowHtml).join("")+'</div>';
+  if(past.length) h+='<div class="sec">已经过去</div><div class="card">'+past.map(rowHtml).join("")+'</div>';
+  $("lists").innerHTML=h;
+  checkBackup();
+}
+function rowHtml(r){
+  var it=r.it, d=r.d, o=d.o, cls="it";
+  if(o.days===0) cls+=" today"; else if(o.days<0) cls+= d.c.expire?" over":" past"; else if(o.days<=(it.remind||0)) cls+=" hot";
+  return '<div class="'+cls+'" data-id="'+it.id+'"><div class="em">'+esc(d.c.em)+'</div><div class="mid"><div class="nm">'+esc(it.name)+(d.extra?' <span class="sub" style="font-weight:400">· '+d.extra+'</span>':'')+'</div><div class="dt">'+esc(d.date||"")+'</div></div>'+
+    '<div class="rt"><b>'+d.big+'</b><small>'+d.unit+'</small></div></div>';
+}
+$("filter").addEventListener("click",function(e){ var b=e.target.closest("button"); if(!b) return; filt=b.dataset.c; renderHome(); });
+$("lists").addEventListener("click",function(e){ var r=e.target.closest(".it"); if(r) openItem(r.dataset.id); });
+
+// ---------- 详情 ----------
+function findItem(id){ if(id[0]==="f") return festivals().filter(function(f){return f.id===id;})[0]; return db.items.filter(function(x){return x.id===id;})[0]; }
+function openItem(id){
+  var it=findItem(id); if(!it) return;
+  var d=describe(it), o=d.o, kv="";
+  if(o.date!=null){
+    kv+='<div><span>'+(it.rep==="n"?"日期":"下一次")+'</span><b>'+fmtSolar(o.date,true)+' '+fmtW(o.date)+'</b></div>';
+    kv+='<div><span>农历</span><b>'+fmtLunar(solarToLunar(o.date),true)+'</b></div>';
+  }
+  if(it.cal==="l" && it.rep!=="n") kv+='<div><span>按农历</span><b>每年'+(it.d===0?"腊月最后一天（除夕）":lmName(it.m,it.leap)+ldName(it.d))+'</b></div>';
+  var od=originDay(it);
+  if(od!=null && it.rep!=="n"){
+    kv+='<div><span>'+(d.c.age?"出生":"开始")+'</span><b>'+fmtSolar(od,true)+(it.cal==="l"?"（农历"+fmtLunar({y:it.y,m:it.m,d:it.d,leap:it.leap},false)+"）":"")+'</b></div>';
+    var since=today()-od; if(since>=0) kv+='<div><span>已经</span><b>'+since.toLocaleString()+' 天</b></div>';
+  }
+  if(d.extra) kv+='<div><span>'+(d.c.age?"年龄":"周年")+'</span><b>'+(o.days===0?"今天":"这次")+d.extra+'</b></div>';
+  if(it.rep) kv+='<div><span>重复</span><b>'+({y:"每年",m:"每月",n:"不重复"})[it.rep]+'</b></div>';
+  kv+='<div><span>提醒</span><b>'+(it.remind?"提前 "+it.remind+" 天出现在「快到了」":"当天")+'</b></div>';
+  if(it.note) kv+='<div><span>备注</span><b style="white-space:pre-wrap">'+esc(it.note)+'</b></div>';
+  var bigTxt = o.days===0 ? '<div class="d">就是今天</div>' : '<div class="d">'+d.big+'<small>'+d.unit+'</small></div>';
+  sheet('<div class="big"><div class="e">'+esc(d.c.em)+'</div><div class="n">'+esc(it.name)+'</div>'+bigTxt+'</div><div class="kv">'+kv+'</div>'+
+    (it.fest?'<p class="sub" style="margin-top:12px">传统节日可以在「设置」里关掉。</p>':
+    (d.c.expire && it.rep==="n" ? '<button class="btn full" data-act="renew" style="margin-top:14px">已续期，改新日期</button>':'')+
+    '<div class="row" style="margin-top:12px"><button class="ghost" data-act="edit" style="flex:1">编辑</button><button class="ghost" data-act="del" style="flex:1;color:var(--accent)">删除</button></div>')+
+    '<button class="ghost full" data-act="close" style="margin-top:10px">关闭</button>', function(act){
+      if(act==="edit"||act==="renew"){ closeSheet(); editItem(it); return; }
+      if(act==="del"){ if(delArm!==it.id){ delArm=it.id; toast("再点一次「删除」确认",2000); setTimeout(function(){delArm=null;},2500); return; }
+        db.items=db.items.filter(function(x){return x.id!==it.id;}); persist(); closeSheet(); toast("已删除"); renderHome(); }
+    });
+}
+var delArm=null;
+
+// ---------- 添加 / 编辑 ----------
+var F=null; // 正在编辑的表单状态
+function editItem(it){
+  var c0 = filt!=="all" && filt!=="__fest" ? filt : db.cats[0].id;
+  var tc=solarToLunar(today());
+  F = it ? JSON.parse(JSON.stringify(it)) : {cat:c0, cal:"s", rep:cat(c0).rep, remind:cat(c0).remind, y:0, m:0, d:0, leap:false};
+  F.isNew=!it;
+  if(!it){ var a=ymd(today()); F.y=a.y; F.m=a.m; F.d=a.d; }
+  F.noYear = !F.isNew && !F.y;
+  renderForm();
+}
+function renderForm(){
+  var catChips=db.cats.map(function(c){ return '<button data-cat="'+c.id+'" class="'+(c.id===F.cat?"on":"")+'">'+esc(c.em+" "+c.name)+'</button>'; }).join("");
+  var h='<h2>'+(F.isNew?"添加重要日子":"编辑")+'</h2>'+
+    '<label class="f" style="margin-top:0">名称 *</label><input id="fN" value="'+esc(F.name||"")+'" placeholder="比如：彦神生日、护照到期、结婚纪念日">'+
+    '<label class="f">分类</label><div class="chips" id="fCat">'+catChips+'</div>'+
+    '<label class="f">日期</label><div class="seg" id="fCal"><button data-v="s" class="'+(F.cal==="s"?"on":"")+'">公历</button><button data-v="l" class="'+(F.cal==="l"?"on":"")+'">农历</button></div>'+
+    '<div id="fDate" style="margin-top:10px"></div>'+
+    '<label class="f">重复</label><div class="chips" id="fRep">'+[["y","每年"],["m","每月"],["n","不重复"]].map(function(r){ return '<button data-v="'+r[0]+'" class="'+(F.rep===r[0]?"on":"")+'"'+(F.cal==="l"&&r[0]==="m"?" disabled style=\"opacity:.35\"":"")+'>'+r[1]+'</button>'; }).join("")+'</div>'+
+    '<label class="f">提前几天提醒（出现在「快到了」）</label><div class="chips" id="fRem">'+[0,1,3,7,15,30,60,90].map(function(n){ return '<button data-v="'+n+'" class="'+(+F.remind===n?"on":"")+'">'+(n?n+" 天":"当天")+'</button>'; }).join("")+'</div>'+
+    '<label class="f">备注（选填）</label><input id="fNote" value="'+esc(F.note||"")+'" placeholder="比如：礼物想法、续期要带的材料">'+
+    '<div class="row" style="margin-top:16px"><button class="ghost" data-act="close" style="flex:1">取消</button><button class="btn" data-act="save" style="flex:2">保存</button></div>';
+  var keepName = $("fN") ? $("fN").value : null, keepNote = $("fNote") ? $("fNote").value : null;
+  sheet(h, onForm);
+  if(keepName!=null){ $("fN").value=keepName; $("fNote").value=keepNote; }
+  renderDate();
+}
+function renderDate(){
+  var h="", yearly=F.rep!=="n";
+  if(F.cal==="s"){
+    if(yearly && F.noYear){
+      h='<div class="three" style="grid-template-columns:1fr 1fr"><select id="fM">'+range(1,12).map(function(m){ return '<option value="'+m+'"'+(m===F.m?" selected":"")+'>'+m+' 月</option>'; }).join("")+'</select>'+
+        '<select id="fD">'+range(1,31).map(function(d){ return '<option value="'+d+'"'+(d===F.d?" selected":"")+'>'+d+' 日</option>'; }).join("")+'</select></div>';
+    } else if(F.rep==="m"){
+      h='<select id="fD">'+range(1,31).map(function(d){ return '<option value="'+d+'"'+(d===F.d?" selected":"")+'>每月 '+d+' 日</option>'; }).join("")+'</select><p class="sub" style="margin-top:6px">某个月没有这一天时，算在当月最后一天。</p>';
+    } else {
+      var v=F.y?F.y+"-"+("0"+F.m).slice(-2)+"-"+("0"+F.d).slice(-2):"";
+      h='<input type="date" id="fDate1" value="'+v+'">';
+    }
+  } else {
+    var ys='<option value="0"'+(!F.y?" selected":"")+'>'+(yearly?"不记得年份":"选择年份")+'</option>';
+    for(var y=2099;y>=1901;y--) ys+='<option value="'+y+'"'+(y===F.y?" selected":"")+'>'+y+'年</option>';
+    var lp=F.y?leapOf(F.y):0, mo="";
+    for(var m=1;m<=12;m++){ mo+='<option value="'+m+'"'+(m===F.m&&!F.leap?" selected":"")+'>'+lmName(m,false)+'</option>'; if(m===lp||(!F.y&&F.leap&&m===F.m)) mo+='<option value="L'+m+'"'+(m===F.m&&F.leap?" selected":"")+'>'+lmName(m,true)+'</option>'; }
+    var dd=range(1,30).map(function(d){ return '<option value="'+d+'"'+(d===F.d?" selected":"")+'>'+ldName(d)+'</option>'; }).join("");
+    h='<div class="three"><select id="fLY">'+ys+'</select><select id="fLM">'+mo+'</select><select id="fLD">'+dd+'</select></div>';
+    h+='<p class="sub" id="fLHint" style="margin-top:6px"></p>';
+  }
+  if(F.cal==="s" && yearly && F.rep==="y") h+='<div class="chk"><input type="checkbox" id="fNoY"'+(F.noYear?" checked":"")+'><label for="fNoY">不记得是哪一年（就不显示几岁/几周年）</label></div>';
+  $("fDate").innerHTML=h;
+  bindDate();
+}
+function range(a,b){ var r=[]; for(var i=a;i<=b;i++) r.push(i); return r; }
+function readDate(){
+  if(F.cal==="s"){
+    if($("fDate1")){ var v=$("fDate1").value; if(v){ var p=v.split("-"); F.y=+p[0]; F.m=+p[1]; F.d=+p[2]; } else F.y=0; }
+    if($("fM")){ F.m=+$("fM").value; F.y=0; }
+    if($("fD")) F.d=+$("fD").value;
+  } else {
+    F.y=+$("fLY").value; var mv=$("fLM").value; F.leap=mv[0]==="L"; F.m=+mv.replace("L",""); F.d=+$("fLD").value;
+  }
+}
+function bindDate(){
+  ["fDate1","fM","fD","fLY","fLM","fLD"].forEach(function(id){ var e=$(id); if(e) e.onchange=function(){ readDate(); if(id==="fLY") renderDate(); else hint(); }; });
+  var nY=$("fNoY"); if(nY) nY.onchange=function(){ readDate(); F.noYear=this.checked; if(!F.noYear && !F.y){ var a=ymd(today()); F.y=a.y; if(!F.m){F.m=a.m;F.d=a.d;} } renderDate(); };
+  hint();
+}
+function hint(){
+  var e=$("fLHint"); if(!e) return;
+  if(F.y){ var n=lunarToSolar(F.y,F.m,F.d,F.leap); if(n!=null){ var ok=solarToLunar(n); e.textContent="对应公历 "+fmtSolar(n,true)+(ok.d!==F.d?"（这个月没有"+ldName(F.d)+"，按"+ldName(ok.d)+"算）":""); } else e.textContent=""; }
+  else e.textContent = F.rep==="n" ? "不重复的日子需要选年份" : "每年农历这一天提醒，公历日期自动换算";
+}
+function onForm(act,b){
+  if(b && b.dataset.cat){ readDate(); var c=cat(b.dataset.cat); F.cat=c.id; if(F.isNew){ F.rep=(F.cal==="l"&&c.rep==="m")?"y":c.rep; F.remind=c.remind; if(F.rep==="n") F.noYear=false; } renderForm(); return; }
+  if(act!=="save") return;
+  readDate();
+  var name=$("fN").value.trim(); if(!name){ toast("请填名称"); $("fN").focus(); return; }
+  if(F.rep==="n" && !F.y){ toast("不重复的日子要选具体日期（含年份）"); return; }
+  if(F.cal==="s" && F.rep!=="m" && (!F.m||!F.d)){ toast("请选日期"); return; }
+  if(F.cal==="l" && F.y && lunarToSolar(F.y,F.m,F.d,F.leap)==null){ toast("这个农历日期超出范围"); return; }
+  if(F.noYear && F.cal==="s") F.y=0;
+  var it={name:name,cat:F.cat,cal:F.cal,y:F.y||0,m:F.m,d:F.d,leap:!!F.leap,rep:F.rep,remind:+F.remind,note:$("fNote").value.trim()};
+  if(F.rep==="m"){ it.cal="s"; it.y=0; it.m=0; }
+  if(F.isNew){ it.id="i"+(db.nextId++); db.items.push(it); }
+  else { it.id=F.id; db.items=db.items.map(function(x){ return x.id===F.id?it:x; }); }
+  persist(); closeSheet(); toast("已保存"); renderHome();
+}
+$("sheet").addEventListener("click",function(e){
+  if(!F) return;
+  var b=e.target.closest("#fCal button, #fRep button, #fRem button"); if(!b) return;
+  readDate();
+  var p=b.parentNode.id;
+  if(p==="fCal"){ var nv=b.dataset.v; if(nv!==F.cal){ // 切换公历/农历时自动换算日期
+      if(F.y){ if(nv==="l"){ var l=solarToLunar(dn(F.y,F.m||1,F.d||1)); F.y=l.y; F.m=l.m; F.d=l.d; F.leap=l.leap; } else { var n=lunarToSolar(F.y,F.m,F.d,F.leap); var a=ymd(n); F.y=a.y; F.m=a.m; F.d=a.d; F.leap=false; } }
+      else { if(!F.m) F.m=1; if(!F.d) F.d=1; F.leap=false; }
+      F.cal=nv; if(nv==="l" && F.rep==="m") F.rep="y"; F.noYear=false; } }
+  if(p==="fRep"){ if(b.disabled) return; F.rep=b.dataset.v; if(F.rep==="n") F.noYear=false; if(F.rep==="m" && !F.d) F.d=1; }
+  if(p==="fRem") F.remind=+b.dataset.v;
+  renderForm();
+});
+$("fab").onclick=function(){ editItem(null); };
+
+// ---------- 弹层 ----------
+var sheetCb=null;
+function sheet(html,cb){ $("sheetIn").innerHTML=html; sheetCb=cb; $("sheet").classList.add("on"); }
+function closeSheet(){ $("sheet").classList.remove("on"); sheetCb=null; F=null; }
+$("sheet").addEventListener("click",function(e){
+  if(e.target===this){ closeSheet(); return; }
+  var b=e.target.closest("[data-act],[data-cat]"); if(!b) return;
+  if(b.dataset.act==="close"){ closeSheet(); return; }
+  if(sheetCb) sheetCb(b.dataset.act,b);
+});
+
+// ---------- 设置 ----------
+function renderSet(){
+  $("setName").value=db.name||"";
+  $("setFest").checked=!!db.fest;
+  $("catList").innerHTML=db.cats.map(function(c){ var n=db.items.filter(function(i){return i.cat===c.id;}).length;
+    return '<div class="it" data-cat2="'+c.id+'"><div class="em">'+esc(c.em)+'</div><div class="mid"><div class="nm">'+esc(c.name)+'</div><div class="dt">'+({y:"每年",m:"每月",n:"不重复"})[c.rep]+' · 提前 '+c.remind+' 天'+(c.age?" · 显示几岁":"")+(c.expire?" · 到期类":"")+'</div></div><div class="rt"><small>'+n+' 条 ›</small></div></div>'; }).join("");
+  $("countInfo").textContent="共 "+db.items.length+" 个日子。"+(db.lastBackup?"上次备份："+new Date(db.lastBackup).toLocaleDateString("zh-CN")+"。":"还没有备份过。");
+}
+$("setName").onchange=function(){ db.name=this.value.trim()||db.name; persist(); };
+$("setFest").onchange=function(){ db.fest=this.checked; persist(); };
+$("catList").addEventListener("click",function(e){ var r=e.target.closest("[data-cat2]"); if(r) editCat(r.dataset.cat2); });
+$("addCat").onclick=function(){ editCat(null); };
+var EMOJI="🎂 💍 📄 💳 ⏳ ❤️ 🎓 🏠 🚗 🐶 ✈️ 🏥 💊 🎁 🌸 ⭐ 📌 🏮 💼 📚".split(" ");
+function editCat(id){
+  var c = id ? JSON.parse(JSON.stringify(cat(id))) : {name:"",em:"📌",rep:"y",remind:7,age:0};
+  function draw(){
+    var n=id?db.items.filter(function(i){return i.cat===id;}).length:0;
+    sheet('<h2>'+(id?"编辑分类":"新分类")+'</h2><label class="f" style="margin-top:0">名字</label><input id="cN" value="'+esc(c.name)+'" placeholder="比如：宠物疫苗、考试">'+
+      '<label class="f">图标</label><div class="chips" id="cE">'+EMOJI.map(function(e){ return '<button data-e="'+e+'" class="'+(e===c.em?"on":"")+'">'+e+'</button>'; }).join("")+'</div>'+
+      '<label class="f">新建日子时默认</label><div class="chips" id="cR">'+[["y","每年"],["m","每月"],["n","不重复"]].map(function(r){ return '<button data-r="'+r[0]+'" class="'+(c.rep===r[0]?"on":"")+'">'+r[1]+'</button>'; }).join("")+'</div>'+
+      '<div class="chips" id="cM">'+[0,1,3,7,15,30,60,90].map(function(x){ return '<button data-m="'+x+'" class="'+(c.remind===x?"on":"")+'">'+(x?"提前 "+x+" 天":"当天")+'</button>'; }).join("")+'</div>'+
+      '<div class="chk"><input type="checkbox" id="cA"'+(c.age?" checked":"")+'><label for="cA">按「几岁」显示（生日类），否则按「几周年」</label></div>'+
+      '<div class="chk"><input type="checkbox" id="cX"'+(c.expire?" checked":"")+'><label for="cX">到期类（过期后标红，提示续期）</label></div>'+
+      '<div class="row" style="margin-top:16px">'+(id?'<button class="ghost" data-act="del" style="flex:1;color:var(--accent)">删除</button>':'<button class="ghost" data-act="close" style="flex:1">取消</button>')+'<button class="btn" data-act="save" style="flex:2">保存</button></div>', function(act,b){
+        if(act==="del"){ if(n){ toast("这个分类下还有 "+n+" 条，先把它们改到别的分类",2800); return; } if(db.cats.length<=1){ toast("至少保留一个分类"); return; }
+          db.cats=db.cats.filter(function(x){return x.id!==id;}); if(filt===id) filt="all"; persist(); closeSheet(); renderSet(); return; }
+        if(act!=="save") return;
+        c.name=$("cN").value.trim(); if(!c.name){ toast("请填名字"); return; }
+        c.age=$("cA").checked?1:0; c.expire=$("cX").checked?1:0;
+        if(id) db.cats=db.cats.map(function(x){ return x.id===id?c:x; }); else { c.id="c"+(db.nextId++); db.cats.push(c); }
+        persist(); closeSheet(); toast("已保存"); renderSet();
+      });
+    $("cE").onclick=function(e){ var b=e.target.closest("button"); if(!b) return; c.name=$("cN").value; c.em=b.dataset.e; draw(); };
+    $("cR").onclick=function(e){ var b=e.target.closest("button"); if(!b) return; c.name=$("cN").value; c.rep=b.dataset.r; draw(); };
+    $("cM").onclick=function(e){ var b=e.target.closest("button"); if(!b) return; c.name=$("cN").value; c.remind=+b.dataset.m; draw(); };
+  }
+  draw();
+}
+
+// 备份
+function shareOrDownload(name,text,type){
+  var blob=new Blob([text],{type:type}), f; try{ f=new File([blob],name,{type:type}); }catch(e){}
+  if(f && navigator.canShare && navigator.canShare({files:[f]})){ navigator.share({files:[f]}).catch(function(){}); return; }
+  var a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(function(){a.remove();},500);
+}
+$("exportJson").onclick=function(){
+  var a=ymd(today());
+  shareOrDownload("重要日子备份-"+a.y+"-"+("0"+a.m).slice(-2)+"-"+("0"+a.d).slice(-2)+".json", JSON.stringify({app:"rizi",v:1,at:Date.now(),db:db}), "application/json");
+  db.lastBackup=Date.now(); delete db.bkSnooze; persist(); renderSet();
+};
+$("importBtn").onclick=function(){ $("importFile").click(); };
+$("importFile").onchange=function(){
+  var f=this.files[0]; if(!f) return; var r=new FileReader();
+  r.onload=function(){ try{ var o=JSON.parse(r.result); if(o.app!=="rizi"||!o.db) throw 0;
+    sheet('<h2>从备份恢复？</h2><p class="sub">备份里有 '+(o.db.items||[]).length+' 个日子。恢复后会替换这台手机上现在的内容。</p><div class="row"><button class="ghost" data-act="close" style="flex:1">取消</button><button class="btn" data-act="ok" style="flex:1">恢复</button></div>',function(act){
+      if(act!=="ok") return; localStorage.setItem(KEY,JSON.stringify(o.db)); load(); closeSheet(); toast("已恢复"); goView("home"); });
+  }catch(e){ toast("这不是重要日子的备份文件",2500); } };
+  r.readAsText(f); this.value="";
+};
+function checkBackup(){
+  var now=Date.now(), since=db.lastBackup||db.created, days=Math.floor((now-since)/DAY);
+  var show=db.items.length>0 && days>=30 && !(db.bkSnooze && now<db.bkSnooze);
+  $("bkCard").hidden=!show;
+  if(show) $("bkText").textContent=db.lastBackup?"📦 已经 "+days+" 天没有备份了，花 10 秒备份一下吧。":"📦 用了一个月啦，记得备份一次，换手机时能恢复。";
+}
+$("bkGo").onclick=function(){ goView("set"); };
+$("bkLater").onclick=function(){ db.bkSnooze=Date.now()+3*DAY; persist(); checkBackup(); };
+
+// ---------- 导航与启动 ----------
+function goView(v){
+  [].forEach.call(document.querySelectorAll(".view"),function(s){ s.classList.toggle("on",s.id==="v-"+v); });
+  [].forEach.call($("tabs").children,function(b){ b.classList.toggle("on",b.dataset.v===v); });
+  $("fab").style.display = v==="home"?"":"none";
+  if(v==="home") renderHome(); else renderSet();
+  window.scrollTo(0,0);
+}
+$("tabs").addEventListener("click",function(e){ var b=e.target.closest("button"); if(b) goView(b.dataset.v); });
+document.addEventListener("visibilitychange",function(){ if(!document.hidden && $("v-home").classList.contains("on")) renderHome(); });
+if(!db.name) $("welcome").classList.add("on");
+$("wGo").onclick=function(){ var n=$("wName").value.trim(); if(!n){ $("wName").focus(); return; } db.name=n; persist(); $("welcome").classList.remove("on"); renderHome(); };
+window.__t={lunarToSolar:lunarToSolar,solarToLunar:solarToLunar,occ:occurrence};
+renderHome();
+if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(function(){});
+})();
+</script>
+</body>
+</html>
