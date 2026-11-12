@@ -52,6 +52,7 @@
   button{font-family:inherit}
   .btn{border:0;background:var(--accent);color:#fff;border-radius:12px;padding:12px 16px;font-size:16px;font-weight:600}
   .ghost{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:11px 14px;font-size:15px}
+  .ghost:disabled,.btn:disabled{opacity:.45}
   .full{width:100%}
   .row{display:flex;gap:10px;align-items:center}
   select,input,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:16px;width:100%}
@@ -148,6 +149,11 @@
       <input type="file" id="importFile" accept=".zip,.json,application/zip,application/json" hidden>
       <p class="sub" id="storeInfo" style="margin-top:10px"></p>
       <p class="sub" id="countInfo" style="margin-top:10px"></p>
+    </div>
+    <div class="card pad">
+      <h2>释放空间</h2>
+      <p class="sub" id="cleanInfo"></p>
+      <button class="ghost" id="cleanBtn" style="width:100%;margin-top:8px">清理已导出的视频</button>
     </div>
     <p class="sub" style="text-align:center">网页 App 不能在锁屏弹通知，提醒在打开 App 时显示。<br>特别重要的日子，可以再在 iPhone「提醒事项」里设一条。</p>
   </section>
@@ -488,9 +494,13 @@ function renderSet(){
   $("catList").innerHTML=db.cats.map(function(c){ var n=db.items.filter(function(i){return i.cat===c.id;}).length;
     return '<div class="it" data-cat2="'+c.id+'"><div class="em">'+esc(c.em)+'</div><div class="mid"><div class="nm">'+esc(c.name)+'</div><div class="dt">'+({y:"每年",m:"每月",n:"不重复"})[c.rep]+' · 提前 '+c.remind+' 天'+(c.age?" · 显示几岁":"")+(c.expire?" · 到期类":"")+'</div></div><div class="rt"><small>'+n+' 条 ›</small></div></div>'; }).join("");
   $("countInfo").textContent="共 "+db.items.length+" 个日子。"+(db.lastBackup?"上次导出："+new Date(db.lastBackup).toLocaleDateString("zh-CN")+"。":"还没有导出过。");
-  var sz=0, nf=0; db.mems.forEach(function(m){ m.media.forEach(function(x){ sz+=x.size||0; nf++; }); });
+  var sz=0, nf=0, off=0; db.mems.forEach(function(m){ m.media.forEach(function(x){ if(x.off){ off++; return; } sz+=x.size||0; nf++; }); });
   var ue=unexported().length;
-  $("storeInfo").textContent="记录："+db.mems.length+" 条，照片视频录音 "+nf+" 个，约占 "+fmtSize(sz)+"。"+(ue?"其中 "+ue+" 条还没导出。":"");
+  $("storeInfo").textContent="记录："+db.mems.length+" 条，照片视频录音 "+nf+" 个，约占 "+fmtSize(sz)+"。"+(ue?"其中 "+ue+" 条还没导出。":"")+(off?"另有 "+off+" 段视频已清理，保存在导出的 zip 里。":"");
+  var cv=cleanable(), csz=cv.reduce(function(a,x){ return a+(x.size||0); },0), left=0;
+  db.mems.forEach(function(m){ m.media.forEach(function(x){ if(x.type==="video" && !x.off && !x.exp) left++; }); });
+  $("cleanInfo").textContent=(cv.length?"有 "+cv.length+" 段视频已经导出过，约 "+fmtSize(csz)+"，可以从手机里清理掉。":"目前没有可以清理的视频。")+(left?"另有 "+left+" 段视频还没导出过，不会被清理。":"")+"清理后文字、照片、录音和视频封面都会保留；以后把当时导出的 zip 导入回来，视频还能找回。";
+  $("cleanBtn").disabled=!cv.length;
 }
 $("setName").onchange=function(){ db.name=this.value.trim()||db.name; persist(); };
 $("setFest").onchange=function(){ db.fest=this.checked; persist(); };
@@ -613,7 +623,7 @@ function renderEdMedia(){
   var box=$("mMedia"); if(!box) return; box.innerHTML="";
   ED.media.forEach(function(m,i){
     var c=document.createElement("div"); c.className="cell";
-    c.innerHTML=(m.type==="audio"?"🎙️":m.type==="video"?"🎬":"")+(m.type!=="photo"?'<span class="lab">'+(m.type==="audio"?"录音 "+(m.dur||""):"视频")+'</span>':'')+'<button class="x" data-i="'+i+'">×</button>';
+    c.innerHTML=(m.type==="audio"?"🎙️":m.type==="video"?"🎬":"")+(m.type!=="photo"?'<span class="lab">'+(m.type==="audio"?"录音 "+(m.dur||""):m.off?"视频·在电脑":"视频")+'</span>':'')+'<button class="x" data-i="'+i+'">×</button>';
     if(m.thumbURL){ c.style.backgroundImage='url("'+m.thumbURL+'")'; if(m.type==="video") c.firstChild.nodeType===3&&c.removeChild(c.firstChild); }
     else if(m.saved && m.type!=="audio"){ blobURL(m.hasThumb?m.id+"_t":m.id).then(function(u){ if(u){ c.style.backgroundImage='url("'+u+'")'; if(c.firstChild&&c.firstChild.nodeType===3) c.removeChild(c.firstChild); } }); }
     box.appendChild(c);
@@ -654,7 +664,7 @@ async function saveMem(){
   if(!text && !ED.media.length){ toast("写几句，或者加张照片吧"); return; }
   var dv=$("mDate").value, d=ED.date; if(dv){ var p=dv.split("-"); d=dn(+p[0],+p[1],+p[2]); }
   var m={id:ED.id,item:ED.item,date:d,text:text,at:Date.now(),
-    media:ED.media.map(function(x){ var o={id:x.id,type:x.type,mime:x.mime,hasThumb:!!(x.saved?x.hasThumb:x.thumb)}; if(x.dur) o.dur=x.dur; if(x.size||x.blob) o.size=x.size||x.blob.size; return o; })};
+    media:ED.media.map(function(x){ var o={id:x.id,type:x.type,mime:x.mime,hasThumb:!!(x.saved?x.hasThumb:x.thumb)}; if(x.dur) o.dur=x.dur; if(x.size||x.blob) o.size=x.size||x.blob.size; if(x.exp) o.exp=x.exp; if(x.off) o.off=x.off; return o; })};
   busy(true,"正在保存…");
   try{
     var list=[]; ED.media.forEach(function(x){ if(x.saved) return; list.push({id:x.id,blob:x.blob}); if(x.thumb) list.push({id:x.id+"_t",blob:x.thumb}); });
@@ -670,7 +680,7 @@ function refreshAfterMem(itemId){ if($("v-mem").classList.contains("on")) render
 function fmtDay(n){ var a=ymd(n); return a.y+"年"+a.m+"月"+a.d+"日"; }
 function memsFor(itemId){ return db.mems.filter(function(m){return m.item===itemId;}).sort(function(a,b){ return b.date-a.date||b.at-a.at; }); }
 function memHtml(m,showItem){
-  var media=m.media.map(function(x){ return '<div class="cell" data-thumb="'+(x.type==="audio"?"":(x.hasThumb?x.id+"_t":x.id))+'">'+(x.type==="audio"?"🎙️":x.type==="video"?"🎬":"")+(x.type!=="photo"?'<span class="lab">'+(x.type==="audio"?(x.dur||"录音"):"视频")+'</span>':'')+'</div>'; }).join("");
+  var media=m.media.map(function(x){ return '<div class="cell" data-thumb="'+(x.type==="audio"?"":(x.hasThumb?x.id+"_t":x.id))+'">'+(x.type==="audio"?"🎙️":x.type==="video"?"🎬":"")+(x.type!=="photo"?'<span class="lab">'+(x.type==="audio"?(x.dur||"录音"):x.off?"视频·在电脑":"视频")+'</span>':'')+'</div>'; }).join("");
   return '<div class="mem" data-mem="'+m.id+'"><div class="h"><span>'+(showItem?esc(itemEm(m.item))+' '+esc(itemName(m.item))+' · ':'')+fmtDay(m.date)+'</span><span>›</span></div>'+
     (m.text?'<div class="tx">'+esc(m.text.length>120?m.text.slice(0,120)+"…":m.text)+'</div>':'')+(media?'<div class="ms">'+media+'</div>':'')+'</div>';
 }
@@ -691,6 +701,9 @@ function viewMem(id){
       if(act==="edit"){ closeSheet(); openEditor(m.item,m.id); } });
   var box=$("vMedia");
   m.media.forEach(function(x){
+    if(x.off){ var w=document.createElement("div"); w.className="offv";
+      w.innerHTML='<div class="cell" style="width:100%;aspect-ratio:16/9;font-size:34px">🎬</div><p class="sub" style="margin:6px 2px 0">这段视频已从手机清理，保存在导出包「'+esc(x.off)+'」里。想在手机上看：设置 › 从备份恢复 › 选这个 zip › 只找回视频。</p>';
+      box.appendChild(w); if(x.hasThumb) blobURL(x.id+"_t").then(function(u){ if(u){ var c=w.firstChild; c.style.backgroundImage='url("'+u+'")'; } }); return; }
     var el=document.createElement(x.type==="photo"?"img":x.type==="video"?"video":"audio");
     if(x.type!=="photo"){ el.controls=true; el.setAttribute("playsinline",""); el.preload="metadata"; }
     box.appendChild(el);
@@ -788,7 +801,8 @@ function viewerHTML(rows,title){
     'var R='+json+';function e(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;","\\"":"&quot;"}[c]})}'+
     'document.getElementById("sum").textContent="共 "+R.length+" 条记录 · 导出于 '+new Date().toLocaleString("zh-CN")+'";var h="",y=null;'+
     'R.forEach(function(r){if(r.y!==y){h+="<h2>"+r.y+" 年</h2>";y=r.y}h+="<div class=e><div class=d>"+e(r.em+" "+r.name)+"</div><div class=m>"+e(r.date)+"</div>"+(r.text?"<div class=t>"+e(r.text)+"</div>":"")+'+
-    '"<div class=g>"+r.media.filter(function(m){return m.type!=="audio"}).map(function(m){return m.type==="photo"?"<img src=\\""+encodeURI(m.path)+"\\" onclick=\\"z(this.src)\\">":"<video controls preload=metadata src=\\""+encodeURI(m.path)+"\\"></video>"}).join("")+"</div>"+'+
+    '"<div class=g>"+r.media.filter(function(m){return m.type!=="audio"&&m.type!=="off"}).map(function(m){return m.type==="photo"?"<img src=\\""+encodeURI(m.path)+"\\" onclick=\\"z(this.src)\\">":"<video controls preload=metadata src=\\""+encodeURI(m.path)+"\\"></video>"}).join("")+"</div>"+'+
+    'r.media.filter(function(m){return m.type==="off"}).map(function(m){return "<div class=m>🎬 有一段视频在之前的导出包「"+e(m.path)+"」里</div>"}).join("")+'+
     'r.media.filter(function(m){return m.type==="audio"}).map(function(m){return "<audio controls src=\\""+encodeURI(m.path)+"\\"></audio>"}).join("")+"</div>"});'+
     'document.getElementById("list").innerHTML=h||"<p class=m>还没有记录。</p>";function z(s){document.getElementById("zi").src=s;document.getElementById("z").style.display="flex"}'+
     '<\/script></body></html>';
@@ -803,9 +817,12 @@ $("exportJson").onclick=async function(){
       var m=ms[i], a=ymd(m.date), base=a.y+"-"+pad2(a.m)+"-"+pad2(a.d)+"_"+itemName(m.item).replace(/[\\\/:*?"<>|]/g,"").slice(0,20);
       var row={y:a.y,date:fmtDay(m.date)+" "+fmtW(m.date),name:itemName(m.item),em:itemEm(m.item),text:m.text,media:[]};
       for(var k=0;k<m.media.length;k++){
-        var x=m.media[k], b=await getBlob(x.id); if(!b) continue;
-        var path="照片视频录音/"+base+"_"+(k+1)+"."+extOf(x.mime||b.type);
-        files.push({name:path,blob:b}); paths[x.id]=path; row.media.push({type:x.type,path:path});
+        var x=m.media[k];
+        var b=x.off?null:await getBlob(x.id);
+        if(!b && !x.off) continue;
+        if(x.off) row.media.push({type:"off",path:x.off});
+        else { var path="照片视频录音/"+base+"_"+(k+1)+"."+extOf(x.mime||b.type);
+          files.push({name:path,blob:b}); paths[x.id]=path; row.media.push({type:x.type,path:path}); }
         if(x.hasThumb){ var tb=await getBlob(x.id+"_t"); if(tb){ files.push({name:"照片视频录音/缩略图/"+x.id+".jpg",blob:tb}); paths[x.id+"_t"]="照片视频录音/缩略图/"+x.id+".jpg"; } }
       }
       rows.push(row);
@@ -817,7 +834,14 @@ $("exportJson").onclick=async function(){
     var zip=await makeZip(files,function(i,n){ busy(true,"正在打包… "+Math.round(i/n*100)+"%"); });
     busy(false);
     var name="重要日子-"+stamp()+".zip", f=null; try{ f=new File([zip],name,{type:"application/zip"}); }catch(e){}
-    var mark=function(){ db.lastBackup=Date.now(); delete db.bkSnooze; db.dirtyMem=false; persist(); renderSet(); checkBackup(); };
+    var newV=[];
+    var mark=function(){
+      db.mems.forEach(function(m){ m.media.forEach(function(x){ if(!x.off && paths[x.id]){ x.exp=name; if(x.type==="video") newV.push(x); } }); });
+      db.lastBackup=Date.now(); delete db.bkSnooze; db.dirtyMem=false; persist(); renderSet(); checkBackup();
+      if(newV.length) setTimeout(function(){ var vs=newV.reduce(function(a,x){ return a+(x.size||0); },0);
+        sheet('<h2>导出完成 ✅</h2><p class="sub">这次导出包含 '+newV.length+' 段视频，约 '+fmtSize(vs)+'。<br><br>建议先在 Mac 上打开「重要日子记录.html」确认视频能播放，再清理手机里的这些视频腾出空间。清理后文字、照片、录音和视频封面都会保留。<br>也可以以后在「设置 › 释放空间」里清理。</p><div class="row"><button class="ghost" data-act="close" style="flex:1">以后再说</button><button class="btn" data-act="ok" style="flex:1">现在清理</button></div>',function(act){
+          if(act!=="ok") return; closeSheet(); cleanVideos(newV.map(function(x){ return x.id; })); }); },600);
+    };
     if(f && navigator.canShare && navigator.canShare({files:[f]})){ navigator.share({files:[f]}).then(function(){ mark(); toast("已导出 📦"); }).catch(function(err){ if(err && err.name!=="AbortError"){ dl(zip,name); mark(); } }); }
     else { dl(zip,name); mark(); toast("已导出 📦"); }
   }catch(e){ busy(false); toast("导出失败："+(e.message||"请重试"),3000); }
@@ -831,19 +855,54 @@ $("importFile").onchange=async function(){
     if(/\.zip$/i.test(f.name) || f.type==="application/zip"){ zip=await readZip(f); var dj=await zip.get("data.json"); if(!dj) throw 0; o=JSON.parse(await dj.text()); }
     else o=JSON.parse(await f.text());
     if(o.app!=="rizi"||!o.db) throw 0;
-    var nm=(o.db.mems||[]).length;
+    var nm=(o.db.mems||[]).length, back=[];
+    if(zip && o.paths) db.mems.forEach(function(m){ m.media.forEach(function(x){ if(x.off && o.paths[x.id]) back.push(x); }); });
+    if(back.length){
+      sheet('<h2>找回视频</h2><p class="sub">这个 zip 里有手机上已清理的 '+back.length+' 段视频，可以只把它们找回来，其他内容不变（推荐）。<br><br>也可以整份恢复：用备份里的 '+(o.db.items||[]).length+' 个日子、'+nm+' 条记录替换手机上现在的全部内容。</p><button class="btn" data-act="back" style="width:100%">只找回这 '+back.length+' 段视频</button><div class="row" style="margin-top:10px"><button class="ghost" data-act="close" style="flex:1">取消</button><button class="ghost" data-act="ok" style="flex:1">整份恢复</button></div>',async function(act){
+        if(act==="back"){ closeSheet();
+          try{ var n=0, batch=[];
+            for(var i=0;i<back.length;i++){ busy(true,"正在找回视频… "+(i+1)+"/"+back.length); var b=await zip.get(o.paths[back[i].id]); if(!b) continue; batch.push({id:back[i].id,blob:new Blob([b],{type:back[i].mime||""})}); await putBlobs(batch); batch=[]; delete back[i].off; n++; }
+            persist(); busy(false); toast(n?"已找回 "+n+" 段视频 🎬":"zip 里没找到这些视频",2600); renderSet();
+          }catch(e){ persist(); busy(false); toast("找回失败："+(e.message||"请重试"),3000); }
+          return; }
+        if(act==="ok"){ closeSheet(); fullRestore(); }
+      });
+      return;
+    }
+    fullRestore(); return;
+    function fullRestore(){
     sheet('<h2>从备份恢复？</h2><p class="sub">备份里有 '+(o.db.items||[]).length+' 个日子、'+nm+' 条记录。恢复后会替换这台手机上现在的内容。</p><div class="row"><button class="ghost" data-act="close" style="flex:1">取消</button><button class="btn" data-act="ok" style="flex:1">恢复</button></div>',async function(act){
       if(act!=="ok") return; closeSheet();
       try{
         if(zip && o.paths){ var ids=Object.keys(o.paths), batch=[];
           for(var i=0;i<ids.length;i++){ busy(true,"正在恢复照片视频… "+(i+1)+"/"+ids.length); var b=await zip.get(o.paths[ids[i]]); if(b){ batch.push({id:ids[i],blob:new Blob([b],{type:mimeFor(ids[i],o.db)})}); } if(batch.length>=10){ await putBlobs(batch); batch=[]; } }
-          if(batch.length) await putBlobs(batch); }
+          if(batch.length) await putBlobs(batch);
+          (o.db.mems||[]).forEach(function(m){ (m.media||[]).forEach(function(x){ if(x.off && o.paths[x.id]) delete x.off; }); }); }
         localStorage.setItem(KEY,JSON.stringify(o.db)); load(); urlCache={}; busy(false); toast("已恢复"); goView("home");
       }catch(e){ busy(false); toast("恢复失败："+(e.message||"请重试"),3000); }
     });
+    }
   }catch(e){ toast(e&&e.message&&/zip/.test(e.message)?e.message:"这不是重要日子的备份文件",3000); }
 };
 function mimeFor(id,d){ var t=""; (d.mems||[]).forEach(function(m){ m.media.forEach(function(x){ if(x.id===id) t=x.mime; else if(x.id+"_t"===id) t="image/jpeg"; }); }); return t; }
+// ---------- 释放空间：清理已导出的视频（只删视频文件，保留封面；x.exp=导出到哪个 zip，x.off=已清理） ----------
+function cleanable(){ var a=[]; db.mems.forEach(function(m){ m.media.forEach(function(x){ if(x.type==="video" && x.exp && !x.off) a.push(x); }); }); return a; }
+function cleanVideos(ids){
+  var want=null; if(ids){ want={}; ids.forEach(function(i){ want[i]=1; }); }
+  var del=[];
+  db.mems.forEach(function(m){ m.media.forEach(function(x){
+    if(x.type==="video" && x.exp && !x.off && (!want || want[x.id])){ x.off=x.exp; del.push(x.id); if(urlCache[x.id]){ URL.revokeObjectURL(urlCache[x.id]); delete urlCache[x.id]; } }
+  }); });
+  if(!del.length){ toast("没有需要清理的视频"); return; }
+  (IDB?Promise.resolve(IDB):openIDB()).then(function(d){ var t=d.transaction("blobs","readwrite"), st=t.objectStore("blobs"); del.forEach(function(id){ st.delete(id); }); return txDone(t); })
+    .then(function(){ persist(); toast("已清理 "+del.length+" 段视频"); if($("v-set").classList.contains("on")) renderSet(); })
+    .catch(function(){ toast("清理失败，请重试",2500); });
+}
+$("cleanBtn").onclick=function(){
+  var cv=cleanable(); if(!cv.length) return;
+  sheet('<h2>清理已导出的视频？</h2><p class="sub">请先确认导出的 zip 已经存好（在 Mac 上打开「重要日子记录.html」能播放视频）。<br><br>清理后手机里不再保存这 '+cv.length+' 段视频，文字、照片、录音和视频封面都会保留。以后在「从备份恢复」里选当时的 zip，可以只把视频找回来。</p><div class="row"><button class="ghost" data-act="close" style="flex:1">取消</button><button class="btn" data-act="ok" style="flex:1">确认清理</button></div>',function(act){
+    if(act!=="ok") return; closeSheet(); cleanVideos(null); });
+};
 function unexported(){ var lb=db.lastBackup||0; return db.mems.filter(function(m){ return (m.edited||m.at)>lb; }); }
 function checkBackup(){
   var now=Date.now(), since=db.lastBackup||db.created, days=Math.floor((now-since)/DAY), ue=unexported();
