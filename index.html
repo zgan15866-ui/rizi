@@ -333,7 +333,7 @@ $("filter").addEventListener("click",function(e){ var b=e.target.closest("button
 $("lists").addEventListener("click",function(e){ var r=e.target.closest(".it"); if(r) openItem(r.dataset.id); });
 
 // ---------- 详情 ----------
-function findItem(id){ if(id[0]==="f") return festivals().filter(function(f){return f.id===id;})[0]; return db.items.filter(function(x){return x.id===id;})[0]; }
+function findItem(id){ if(id[0]==="f"){ var i=+id.slice(1), f=FEST[i]; return f?{id:id,name:f[0],cat:"__fest",cal:"l",m:f[1],d:f[2],rep:"y",remind:7,fest:1}:null; } return db.items.filter(function(x){return x.id===id;})[0]; }
 function openItem(id){
   var it=findItem(id); if(!it) return;
   var d=describe(it), o=d.o, kv="";
